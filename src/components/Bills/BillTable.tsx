@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bill } from '@/types';
 import { useBill } from '@/contexts/BillContext';
@@ -91,12 +90,33 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
   
   const downloadFile = (fileUrl?: string) => {
     if (fileUrl) {
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = selectedBill?.fileName || 'receipt.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Create a mock file URL since we don't actually have a file server
+      // In a real app, this would be a valid URL to the file
+      try {
+        // For demo purposes, we'll simulate a PDF download
+        const blob = new Blob(['This is a sample bill receipt'], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = selectedBill?.fileName || 'receipt.pdf';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          document.body.removeChild(link);
+        }, 100);
+        
+        console.log('File download initiated');
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error('Failed to download file');
+      }
+    } else {
+      toast.error('No file attachment available');
     }
   };
   
