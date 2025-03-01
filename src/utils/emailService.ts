@@ -1,21 +1,39 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface EmailParams {
   to: string;
   subject: string;
   message: string;
+  name?: string;
 }
 
 export const sendEmailNotification = async (params: EmailParams): Promise<boolean> => {
-  // In a real application, this would connect to an email service
-  // For now, we'll mock the behavior and console log
-  
-  console.log('Sending email notification:');
-  console.log(`To: ${params.to}`);
-  console.log(`Subject: ${params.subject}`);
-  console.log(`Message: ${params.message}`);
-  
-  // In a real application with Supabase integration, we would call a Supabase Edge Function to send emails
-  // This could be implemented using the Resend API as mentioned in the requirements
-  
-  return true;
+  try {
+    console.log('Sending email notification:');
+    console.log(`To: ${params.to}`);
+    console.log(`Subject: ${params.subject}`);
+    console.log(`Message: ${params.message}`);
+    
+    // Call the Supabase Edge Function to send email
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: params.to,
+        subject: params.subject,
+        message: params.message,
+        name: params.name
+      }
+    });
+    
+    if (error) {
+      console.error('Email service error:', error);
+      return false;
+    }
+    
+    console.log('Email sent successfully:', data);
+    return true;
+  } catch (error) {
+    console.error('Email service error:', error);
+    return false;
+  }
 };

@@ -2,10 +2,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean; // Added this property
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
@@ -107,7 +109,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading, 
+      isAuthenticated: !!user, // Compute this based on user
+      login, 
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

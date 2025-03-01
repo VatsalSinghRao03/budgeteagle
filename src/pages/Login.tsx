@@ -48,16 +48,6 @@ const Login: React.FC = () => {
         </div>
         
         <div className="max-w-md w-full px-6 py-8 bg-white rounded-lg shadow-xl z-10">
-          <div className="text-center mb-8">
-            <img 
-              src="/lovable-uploads/7b7c80e1-0e0e-46de-8ddc-fb9d21b89cdc.png" 
-              alt="Budget Eagle Logo" 
-              className="h-16 mx-auto mb-2" 
-            />
-            <h1 className="text-2xl font-bold text-gray-800">Budget Eagle</h1>
-            <p className="text-gray-600">A Budget Approval System</p>
-          </div>
-          
           <h2 className="text-2xl font-semibold text-center mb-6">Log In</h2>
           
           <form onSubmit={handleSubmit}>

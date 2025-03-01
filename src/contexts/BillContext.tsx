@@ -4,6 +4,7 @@ import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
 import { sendEmailNotification } from '@/utils/emailService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BillContextType {
   bills: Bill[];
@@ -56,11 +57,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setBills(prevBills => [...prevBills, newBill]);
       
-      // Send email notifications
-      sendEmailNotification({
+      // Send email notifications to submitter
+      await sendEmailNotification({
         to: user.email,
         subject: 'Bill Submitted Successfully',
-        message: `Your bill "${newBill.title}" for ₹${newBill.amount} has been submitted and is awaiting approval.`
+        message: `Your bill "${newBill.title}" for ₹${newBill.amount} has been submitted and is awaiting approval.`,
+        name: user.name
       });
       
       // Notify manager
@@ -69,10 +71,11 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: 'Vikram Singh'
       };
       
-      sendEmailNotification({
+      await sendEmailNotification({
         to: managerUser.email,
         subject: 'New Bill Awaiting Your Approval',
-        message: `${user.name} from ${user.department} has submitted a new bill "${newBill.title}" for ₹${newBill.amount} that requires your review.`
+        message: `${user.name} from ${user.department} has submitted a new bill "${newBill.title}" for ₹${newBill.amount} that requires your review.`,
+        name: managerUser.name
       });
       
       toast.success('Bill submitted successfully');
@@ -93,6 +96,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
       
+      const approvedBill = bills.find(b => b.id === billId);
+      
       setBills(prevBills => 
         prevBills.map(bill => 
           bill.id === billId 
@@ -106,20 +111,32 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )
       );
       
-      const approvedBill = bills.find(b => b.id === billId);
       if (approvedBill) {
         // Notify the submitter
-        sendEmailNotification({
-          to: 'submitter@example.com', // In real app, this would be the actual submitter's email
+        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, get this from the bill
+        const submitterName = approvedBill.submitterName;
+        
+        await sendEmailNotification({
+          to: submitterEmail,
           subject: 'Bill Approved',
-          message: `Your bill "${approvedBill.title}" for ₹${approvedBill.amount} has been approved.`
+          message: `Your bill "${approvedBill.title}" for ₹${approvedBill.amount} has been approved. The payment will be processed soon.`,
+          name: submitterName
         });
         
         // Notify finance
-        sendEmailNotification({
+        await sendEmailNotification({
           to: 'Financelogin03@gmail.com',
           subject: 'Bill Approved - Finance Update',
-          message: `A bill "${approvedBill.title}" for ₹${approvedBill.amount} from ${approvedBill.submitterName} has been approved and is ready for processing.`
+          message: `A bill "${approvedBill.title}" for ₹${approvedBill.amount} from ${approvedBill.submitterName} has been approved and is ready for processing.`,
+          name: 'Arjun Reddy'
+        });
+        
+        // Notify manager about their action
+        await sendEmailNotification({
+          to: user.email,
+          subject: 'Bill Approval Confirmation',
+          message: `You have approved the bill "${approvedBill.title}" for ₹${approvedBill.amount} submitted by ${approvedBill.submitterName}.`,
+          name: user.name
         });
       }
       
@@ -139,6 +156,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
       
+      const rejectedBill = bills.find(b => b.id === billId);
+      
       setBills(prevBills => 
         prevBills.map(bill => 
           bill.id === billId 
@@ -153,13 +172,24 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )
       );
       
-      const rejectedBill = bills.find(b => b.id === billId);
       if (rejectedBill) {
         // Notify the submitter
-        sendEmailNotification({
-          to: 'submitter@example.com', // In real app, this would be the actual submitter's email
+        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, get this from the bill
+        const submitterName = rejectedBill.submitterName;
+        
+        await sendEmailNotification({
+          to: submitterEmail,
           subject: 'Bill Rejected',
-          message: `Your bill "${rejectedBill.title}" for ₹${rejectedBill.amount} has been rejected. Reason: ${reason}`
+          message: `Your bill "${rejectedBill.title}" for ₹${rejectedBill.amount} has been rejected. Reason: ${reason}`,
+          name: submitterName
+        });
+        
+        // Notify manager about their action
+        await sendEmailNotification({
+          to: user.email,
+          subject: 'Bill Rejection Confirmation',
+          message: `You have rejected the bill "${rejectedBill.title}" for ₹${rejectedBill.amount} submitted by ${rejectedBill.submitterName}. Reason: ${reason}`,
+          name: user.name
         });
       }
       

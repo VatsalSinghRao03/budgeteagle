@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Bill } from '@/types';
 import { useBill } from '@/contexts/BillContext';
@@ -6,6 +7,7 @@ import { Eye, Download, Check, X } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import StatusBadge from '@/components/Common/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -90,30 +92,25 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
   
   const downloadFile = (fileUrl?: string) => {
     if (fileUrl) {
-      // Create a mock file URL since we don't actually have a file server
-      // In a real app, this would be a valid URL to the file
       try {
-        // For demo purposes, we'll simulate a PDF download
-        const blob = new Blob(['This is a sample bill receipt'], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create a temporary link and trigger download
+        // Create a temporary link element
         const link = document.createElement('a');
-        link.href = url;
+        link.href = fileUrl;
+        
+        // Use the file name if available, otherwise use a default name
         link.download = selectedBill?.fileName || 'receipt.pdf';
+        
+        // Append to the document body and trigger click
         document.body.appendChild(link);
         link.click();
         
         // Clean up
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          document.body.removeChild(link);
-        }, 100);
+        document.body.removeChild(link);
         
-        console.log('File download initiated');
+        toast.success('Download started');
       } catch (error) {
         console.error('Download error:', error);
-        toast.error('Failed to download file');
+        toast.error('Failed to download file. Please try again.');
       }
     } else {
       toast.error('No file attachment available');
