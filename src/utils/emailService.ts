@@ -1,40 +1,21 @@
 
-import { toast } from 'sonner';
-
 interface EmailParams {
   to: string;
   subject: string;
   message: string;
 }
 
-export const sendEmailNotification = async (params: EmailParams): Promise<void> => {
-  // In a real app, this would make an API call to your email service
-  console.log('Sending email notification:', params);
+export const sendEmailNotification = async (params: EmailParams): Promise<boolean> => {
+  // In a real application, this would connect to an email service
+  // For now, we'll mock the behavior and console log
   
-  try {
-    // This is just a simulation for demo purposes
-    // In a real implementation, this would call the Resend API
-    
-    /* 
-    Example of what would happen in production:
-    
-    const resend = new Resend('re_SyyTcwCQ_4qU82mv4sxpSWyH9kru2ddAi');
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: params.to,
-      subject: params.subject,
-      html: `<p>${params.message}</p>`
-    });
-    */
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log('Email sent successfully to:', params.to);
-    return Promise.resolve();
-  } catch (error) {
-    console.error('Error sending email:', error);
-    toast.error('Failed to send email notification');
-    return Promise.reject(error);
-  }
+  console.log('Sending email notification:');
+  console.log(`To: ${params.to}`);
+  console.log(`Subject: ${params.subject}`);
+  console.log(`Message: ${params.message}`);
+  
+  // In a real application with Supabase integration, we would call a Supabase Edge Function to send emails
+  // This could be implemented using the Resend API as mentioned in the requirements
+  
+  return true;
 };

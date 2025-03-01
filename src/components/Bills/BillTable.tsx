@@ -1,299 +1,361 @@
 
 import React, { useState } from 'react';
 import { Bill } from '@/types';
+import { useBill } from '@/contexts/BillContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { Eye, Download, Check, X } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import StatusBadge from '@/components/Common/StatusBadge';
-import { useAuth } from '@/contexts/AuthContext';
-import { useBill } from '@/contexts/BillContext';
-import { FileText, Download, Check, X, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface BillTableProps {
   bills: Bill[];
+  showFilters?: boolean;
 }
 
-const BillTable: React.FC<BillTableProps> = ({ bills }) => {
+const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
   const { user } = useAuth();
-  const { approveBill, rejectBill, deleteBill } = useBill();
+  const { approveBill, rejectBill, isLoading } = useBill();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
-  const handleApprove = async () => {
-    if (!selectedBill) return;
+  // Filter bills based on search term and status
+  const filteredBills = bills.filter(bill => {
+    // Filter by search term
+    const matchesSearch = bill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.submitterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bill.submitterDepartment.toLowerCase().includes(searchTerm.toLowerCase());
     
-    try {
+    // Filter by status
+    const matchesStatus = statusFilter === 'all' || bill.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+  
+  const handleViewBill = (bill: Bill) => {
+    setSelectedBill(bill);
+    setViewModalOpen(true);
+  };
+  
+  const handleApproveBill = (bill: Bill) => {
+    setSelectedBill(bill);
+    setApproveDialogOpen(true);
+  };
+  
+  const handleRejectBill = (bill: Bill) => {
+    setSelectedBill(bill);
+    setRejectDialogOpen(true);
+  };
+  
+  const confirmApprove = async () => {
+    if (selectedBill) {
       await approveBill(selectedBill.id);
-      setIsApproveDialogOpen(false);
-      setSelectedBill(null);
-    } catch (error) {
-      console.error('Failed to approve bill:', error);
+      setApproveDialogOpen(false);
     }
   };
   
-  const handleReject = async () => {
-    if (!selectedBill || !rejectionReason.trim()) return;
-    
-    try {
+  const confirmReject = async () => {
+    if (selectedBill && rejectionReason.trim() !== '') {
       await rejectBill(selectedBill.id, rejectionReason);
-      setIsRejectDialogOpen(false);
-      setSelectedBill(null);
+      setRejectDialogOpen(false);
       setRejectionReason('');
-    } catch (error) {
-      console.error('Failed to reject bill:', error);
     }
   };
   
-  const handleDelete = async () => {
-    if (!selectedBill) return;
-    
-    try {
-      await deleteBill(selectedBill.id);
-      setIsDeleteDialogOpen(false);
-      setSelectedBill(null);
-    } catch (error) {
-      console.error('Failed to delete bill:', error);
+  const downloadFile = (fileUrl?: string) => {
+    if (fileUrl) {
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = selectedBill?.fileName || 'receipt.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
-  };
-  
-  const handleDownload = (bill: Bill) => {
-    toast.info('Downloading bill attachment...');
-    // This would normally download the file
-    console.log('Downloading bill:', bill);
   };
   
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 glass-card animate-fade-in">
-        <table className="min-w-full divide-y divide-gray-200">
+      {showFilters && (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="relative flex-grow">
+            <Input
+              type="search"
+              placeholder="Search bills..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <span className="absolute left-3 top-2.5 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+          </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      )}
+      
+      <div className="overflow-x-auto">
+        <table className="w-full bg-white border border-gray-200 rounded-lg">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Title
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Amount
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Submitted By
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Department
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {bills.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
-                  No bills found. Adjust your filters or submit a new bill.
-                </td>
-              </tr>
-            ) : (
-              bills.map((bill) => (
-                <tr key={bill.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 text-gray-400 mr-2" />
-                      <div className="text-sm font-medium text-gray-900">{bill.title}</div>
-                    </div>
+          <tbody className="divide-y divide-gray-200">
+            {filteredBills.length > 0 ? (
+              filteredBills.map((bill) => (
+                <tr key={bill.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {bill.title}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-medium">{formatCurrency(bill.amount)}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatCurrency(bill.amount)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{bill.submitterName}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {bill.submitterName}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{bill.submitterDepartment}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {bill.submitterDepartment}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{formatDate(bill.date)}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(bill.date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={bill.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end gap-2">
-                      {bill.fileUrl && (
-                        <button
-                          onClick={() => handleDownload(bill)}
-                          className="text-brand-blue hover:text-brand-blue/80 p-1 rounded-full hover:bg-gray-100"
-                          title="Download Attachment"
-                        >
-                          <Download className="h-5 w-5" />
-                        </button>
-                      )}
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewBill(bill)}
+                        className="text-gray-600"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       
                       {user?.role === 'manager' && bill.status === 'pending' && (
                         <>
-                          <button
-                            onClick={() => {
-                              setSelectedBill(bill);
-                              setIsApproveDialogOpen(true);
-                            }}
-                            className="text-green-600 hover:text-green-800 p-1 rounded-full hover:bg-green-50"
-                            title="Approve"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleApproveBill(bill)}
+                            className="text-green-600"
                           >
-                            <Check className="h-5 w-5" />
-                          </button>
+                            <Check className="h-4 w-4" />
+                          </Button>
                           
-                          <button
-                            onClick={() => {
-                              setSelectedBill(bill);
-                              setIsRejectDialogOpen(true);
-                            }}
-                            className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50"
-                            title="Reject"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRejectBill(bill)}
+                            className="text-red-600"
                           >
-                            <X className="h-5 w-5" />
-                          </button>
+                            <X className="h-4 w-4" />
+                          </Button>
                         </>
-                      )}
-                      
-                      {user?.role === 'finance' && (
-                        <button
-                          onClick={() => {
-                            setSelectedBill(bill);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                          className="text-gray-600 hover:text-gray-800 p-1 rounded-full hover:bg-gray-100"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
                       )}
                     </div>
                   </td>
                 </tr>
               ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  No bills found. Adjust your filters or submit a new bill.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
       
-      {/* Approve Dialog */}
-      <Dialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
-        <DialogContent>
+      {/* View Bill Dialog */}
+      <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Approve Bill</DialogTitle>
+            <DialogTitle>{selectedBill?.title}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this bill?
+              Submitted on {selectedBill ? formatDate(selectedBill.date) : ''}
             </DialogDescription>
           </DialogHeader>
           
-          {selectedBill && (
-            <div className="py-4">
-              <div className="grid gap-2 mb-4">
-                <div><span className="font-medium">Title:</span> {selectedBill.title}</div>
-                <div><span className="font-medium">Amount:</span> {formatCurrency(selectedBill.amount)}</div>
-                <div><span className="font-medium">Submitted By:</span> {selectedBill.submitterName}</div>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Amount</Label>
+              <div className="col-span-3 font-medium">
+                {selectedBill ? formatCurrency(selectedBill.amount) : ''}
               </div>
             </div>
-          )}
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Submitted By</Label>
+              <div className="col-span-3">
+                {selectedBill?.submitterName} ({selectedBill?.submitterDepartment})
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label className="text-right">Description</Label>
+              <div className="col-span-3">
+                {selectedBill?.description}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Status</Label>
+              <div className="col-span-3">
+                {selectedBill && <StatusBadge status={selectedBill.status} />}
+              </div>
+            </div>
+            
+            {selectedBill?.status === 'rejected' && (
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right">Rejection Reason</Label>
+                <div className="col-span-3 text-red-600">
+                  {selectedBill.rejectionReason}
+                </div>
+              </div>
+            )}
+            
+            {selectedBill?.fileUrl && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Attachment</Label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="col-span-3 justify-start gap-2"
+                  onClick={() => downloadFile(selectedBill.fileUrl)}
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download {selectedBill.fileName || 'Receipt'}</span>
+                </Button>
+              </div>
+            )}
+          </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
-              Approve
+            <Button variant="outline" onClick={() => setViewModalOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Approve Confirmation Dialog */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve Bill</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to approve this bill for {selectedBill ? formatCurrency(selectedBill.amount) : ''}?
+              This action will send email notifications.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmApprove}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isLoading ? 'Approving...' : 'Approve Bill'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* Reject Dialog */}
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Bill</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Bill</AlertDialogTitle>
+            <AlertDialogDescription>
               Please provide a reason for rejecting this bill.
-            </DialogDescription>
-          </DialogHeader>
+              This reason will be included in the notification to the submitter.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           
-          {selectedBill && (
-            <div className="py-4">
-              <div className="grid gap-2 mb-4">
-                <div><span className="font-medium">Title:</span> {selectedBill.title}</div>
-                <div><span className="font-medium">Amount:</span> {formatCurrency(selectedBill.amount)}</div>
-                <div><span className="font-medium">Submitted By:</span> {selectedBill.submitterName}</div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="reason">Rejection Reason</Label>
-                <Textarea
-                  id="reason"
-                  placeholder="Enter reason for rejection..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  className="h-24"
-                />
-              </div>
-            </div>
-          )}
+          <div className="py-4">
+            <Textarea
+              placeholder="Reason for rejection..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="min-h-[100px]"
+              required
+            />
+          </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleReject} 
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmReject}
               className="bg-red-600 hover:bg-red-700"
-              disabled={!rejectionReason.trim()}
+              disabled={rejectionReason.trim() === '' || isLoading}
             >
-              Reject
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Bill</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this bill? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedBill && (
-            <div className="py-4">
-              <div className="grid gap-2 mb-4">
-                <div><span className="font-medium">Title:</span> {selectedBill.title}</div>
-                <div><span className="font-medium">Amount:</span> {formatCurrency(selectedBill.amount)}</div>
-                <div><span className="font-medium">Submitted By:</span> {selectedBill.submitterName}</div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleDelete} variant="destructive">
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {isLoading ? 'Rejecting...' : 'Reject Bill'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
