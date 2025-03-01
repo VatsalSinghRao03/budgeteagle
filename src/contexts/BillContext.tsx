@@ -1,0 +1,241 @@
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Bill, AppStats } from '@/types';
+import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
+import { sendEmailNotification } from '@/utils/emailService';
+
+interface BillContextType {
+  bills: Bill[];
+  isLoading: boolean;
+  submitBill: (billData: Omit<Bill, 'id' | 'date' | 'status' | 'submitterName' | 'submitterDepartment'>) => Promise<void>;
+  approveBill: (billId: string) => Promise<void>;
+  rejectBill: (billId: string, reason: string) => Promise<void>;
+  deleteBill: (billId: string) => Promise<void>;
+  getStats: () => AppStats;
+  getUserBills: () => Bill[];
+  getPendingBills: () => Bill[];
+}
+
+const BillContext = createContext<BillContextType | undefined>(undefined);
+
+export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Load bills from localStorage
+    const savedBills = localStorage.getItem('budgetEagleBills');
+    if (savedBills) {
+      setBills(JSON.parse(savedBills));
+    }
+  }, []);
+
+  // Save bills to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('budgetEagleBills', JSON.stringify(bills));
+  }, [bills]);
+
+  const submitBill = async (billData: Omit<Bill, 'id' | 'date' | 'status' | 'submitterName' | 'submitterDepartment'>) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const newBill: Bill = {
+        ...billData,
+        id: `bill-${Date.now()}`,
+        date: new Date().toISOString(),
+        status: 'pending',
+        submitterName: user.name,
+        submitterDepartment: user.department
+      };
+      
+      setBills(prevBills => [...prevBills, newBill]);
+      
+      // Send email notifications
+      sendEmailNotification({
+        to: user.email,
+        subject: 'Bill Submitted Successfully',
+        message: `Your bill "${newBill.title}" for ₹${newBill.amount} has been submitted and is awaiting approval.`
+      });
+      
+      // Notify manager
+      const managerUser = {
+        email: 'Managerlogin2025@gmail.com',
+        name: 'Vikram Singh'
+      };
+      
+      sendEmailNotification({
+        to: managerUser.email,
+        subject: 'New Bill Awaiting Your Approval',
+        message: `${user.name} from ${user.department} has submitted a new bill "${newBill.title}" for ₹${newBill.amount} that requires your review.`
+      });
+      
+      toast.success('Bill submitted successfully');
+      return Promise.resolve();
+    } catch (error) {
+      toast.error('Failed to submit bill');
+      console.error('Submit bill error:', error);
+      return Promise.reject(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const approveBill = async (billId: string) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      setBills(prevBills => 
+        prevBills.map(bill => 
+          bill.id === billId 
+            ? { 
+                ...bill, 
+                status: 'approved', 
+                reviewedBy: user.id,
+                reviewedDate: new Date().toISOString()
+              } 
+            : bill
+        )
+      );
+      
+      const approvedBill = bills.find(b => b.id === billId);
+      if (approvedBill) {
+        // Notify the submitter
+        sendEmailNotification({
+          to: 'submitter@example.com', // In real app, this would be the actual submitter's email
+          subject: 'Bill Approved',
+          message: `Your bill "${approvedBill.title}" for ₹${approvedBill.amount} has been approved.`
+        });
+        
+        // Notify finance
+        sendEmailNotification({
+          to: 'Financelogin03@gmail.com',
+          subject: 'Bill Approved - Finance Update',
+          message: `A bill "${approvedBill.title}" for ₹${approvedBill.amount} from ${approvedBill.submitterName} has been approved and is ready for processing.`
+        });
+      }
+      
+      toast.success('Bill approved successfully');
+    } catch (error) {
+      toast.error('Failed to approve bill');
+      console.error('Approve bill error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const rejectBill = async (billId: string, reason: string) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      setBills(prevBills => 
+        prevBills.map(bill => 
+          bill.id === billId 
+            ? { 
+                ...bill, 
+                status: 'rejected',
+                rejectionReason: reason,
+                reviewedBy: user.id,
+                reviewedDate: new Date().toISOString()
+              } 
+            : bill
+        )
+      );
+      
+      const rejectedBill = bills.find(b => b.id === billId);
+      if (rejectedBill) {
+        // Notify the submitter
+        sendEmailNotification({
+          to: 'submitter@example.com', // In real app, this would be the actual submitter's email
+          subject: 'Bill Rejected',
+          message: `Your bill "${rejectedBill.title}" for ₹${rejectedBill.amount} has been rejected. Reason: ${reason}`
+        });
+      }
+      
+      toast.info('Bill rejected');
+    } catch (error) {
+      toast.error('Failed to reject bill');
+      console.error('Reject bill error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteBill = async (billId: string) => {
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
+      toast.success('Bill deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete bill');
+      console.error('Delete bill error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getStats = (): AppStats => {
+    const userBills = getUserBills();
+    
+    return {
+      totalRequests: userBills.length,
+      totalAmount: userBills.reduce((sum, bill) => sum + bill.amount, 0),
+      pendingApproval: userBills.filter(bill => bill.status === 'pending').length,
+      approved: userBills.filter(bill => bill.status === 'approved').length,
+      rejected: userBills.filter(bill => bill.status === 'rejected').length
+    };
+  };
+
+  const getUserBills = (): Bill[] => {
+    if (!user) return [];
+    
+    // For employee and HR, show only their own bills
+    if (user.role === 'employee' || user.role === 'hr') {
+      return bills.filter(bill => bill.submittedBy === user.id);
+    }
+    
+    // Managers and finance see all bills
+    return bills;
+  };
+
+  const getPendingBills = (): Bill[] => {
+    return bills.filter(bill => bill.status === 'pending');
+  };
+
+  return (
+    <BillContext.Provider value={{ 
+      bills, 
+      isLoading, 
+      submitBill, 
+      approveBill, 
+      rejectBill, 
+      deleteBill,
+      getStats,
+      getUserBills,
+      getPendingBills
+    }}>
+      {children}
+    </BillContext.Provider>
+  );
+};
+
+export const useBill = () => {
+  const context = useContext(BillContext);
+  if (context === undefined) {
+    throw new Error('useBill must be used within a BillProvider');
+  }
+  return context;
+};
