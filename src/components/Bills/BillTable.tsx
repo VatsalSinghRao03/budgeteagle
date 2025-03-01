@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bill } from '@/types';
 import { useBill } from '@/contexts/BillContext';
@@ -47,14 +46,11 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   
-  // Filter bills based on search term and status
   const filteredBills = bills.filter(bill => {
-    // Filter by search term
     const matchesSearch = bill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.submitterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bill.submitterDepartment.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Filter by status
     const matchesStatus = statusFilter === 'all' || bill.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -93,21 +89,23 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
   const downloadFile = (fileUrl?: string) => {
     if (fileUrl) {
       try {
-        // Create a temporary link element
-        const link = document.createElement('a');
-        link.href = fileUrl;
-        
-        // Use the file name if available, otherwise use a default name
-        link.download = selectedBill?.fileName || 'receipt.pdf';
-        
-        // Append to the document body and trigger click
-        document.body.appendChild(link);
-        link.click();
-        
-        // Clean up
-        document.body.removeChild(link);
-        
-        toast.success('Download started');
+        if (fileUrl.startsWith('blob:')) {
+          const link = document.createElement('a');
+          link.href = fileUrl;
+          
+          link.download = selectedBill?.fileName || 'receipt.pdf';
+          
+          document.body.appendChild(link);
+          link.click();
+          
+          document.body.removeChild(link);
+          
+          toast.success('Download started');
+        } 
+        else {
+          window.open(fileUrl, '_blank');
+          toast.success('Download started');
+        }
       } catch (error) {
         console.error('Download error:', error);
         toast.error('Failed to download file. Please try again.');
@@ -246,7 +244,6 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
         </table>
       </div>
       
-      {/* View Bill Dialog */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -318,7 +315,6 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
         </DialogContent>
       </Dialog>
       
-      {/* Approve Confirmation Dialog */}
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -340,7 +336,6 @@ const BillTable: React.FC<BillTableProps> = ({ bills, showFilters = true }) => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Reject Dialog */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
