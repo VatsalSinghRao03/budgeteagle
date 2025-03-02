@@ -6,7 +6,7 @@ import PageTitle from '@/components/Common/PageTitle';
 import StatsCard from '@/components/Common/StatsCard';
 import BillTable from '@/components/Bills/BillTable';
 import { formatCurrency } from '@/utils/formatters';
-import { FileText, FileText2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, IndianRupee, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 
@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
         <StatsCard
           title="Total Amount"
           value={formatCurrency(stats.totalAmount)}
-          icon={<FileText2 className="h-5 w-5" />}
+          icon={<IndianRupee className="h-5 w-5" />}
           iconBg="bg-green-100 text-green-600"
           className="col-span-1"
         />
