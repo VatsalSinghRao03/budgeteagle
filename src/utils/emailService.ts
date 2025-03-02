@@ -1,5 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import axios from "axios";
 
 interface EmailParams {
@@ -38,7 +37,7 @@ export const sendEmailNotification = async (params: EmailParams): Promise<boolea
       },
       {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('RESEND_API_KEY')}`,
+          'Authorization': `Bearer re_G6LGnb2P_K4vPYii2CEVdtfRd1XNiirdw`,
           'Content-Type': 'application/json',
         },
       }
@@ -52,12 +51,11 @@ export const sendEmailNotification = async (params: EmailParams): Promise<boolea
   }
 };
 
-// Function to store Resend API key in localStorage
+// These functions are now obsolete since we're hardcoding the API key
 export const setResendApiKey = (apiKey: string): void => {
   localStorage.setItem('RESEND_API_KEY', apiKey);
 };
 
-// Function to check if Resend API key exists
 export const hasResendApiKey = (): boolean => {
-  return !!localStorage.getItem('RESEND_API_KEY');
+  return true;  // Always return true since we have hardcoded the key
 };

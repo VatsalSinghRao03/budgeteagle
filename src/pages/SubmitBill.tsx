@@ -2,6 +2,7 @@
 import React from 'react';
 import PageTitle from '@/components/Common/PageTitle';
 import BillSubmissionForm from '@/components/Bills/BillSubmissionForm';
+import ApiKeySetup from '@/components/Common/ApiKeySetup';
 
 const SubmitBill: React.FC = () => {
   return (
@@ -12,6 +13,7 @@ const SubmitBill: React.FC = () => {
       />
       
       <BillSubmissionForm />
+      <ApiKeySetup />
     </div>
   );
 };

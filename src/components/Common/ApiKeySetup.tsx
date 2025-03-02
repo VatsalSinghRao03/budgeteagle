@@ -1,21 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { hasResendApiKey, setResendApiKey } from '@/utils/emailService';
+import { setResendApiKey } from '@/utils/emailService';
 
 const ApiKeySetup: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState('');
 
-  useEffect(() => {
-    // Check if API key is already set
-    if (!hasResendApiKey()) {
-      setOpen(true);
-    }
-  }, []);
+  // API key is now hardcoded, so this component won't be triggered automatically
 
   const handleSave = () => {
     if (apiKey.trim()) {

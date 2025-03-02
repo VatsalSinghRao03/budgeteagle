@@ -5,6 +5,7 @@ import { useBill } from '@/contexts/BillContext';
 import PageTitle from '@/components/Common/PageTitle';
 import StatsCard from '@/components/Common/StatsCard';
 import BillTable from '@/components/Bills/BillTable';
+import ApiKeySetup from '@/components/Common/ApiKeySetup';
 import { formatCurrency } from '@/utils/formatters';
 import { FileText, IndianRupee, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -115,6 +116,8 @@ const Dashboard: React.FC = () => {
           </h2>
         </div>
       </div>
+      
+      <ApiKeySetup />
     </div>
   );
 };
