@@ -1,5 +1,5 @@
 
-import axios from "axios";
+import emailjs from 'emailjs-com';
 
 interface EmailParams {
   to: string;
@@ -8,7 +8,13 @@ interface EmailParams {
   name?: string;
 }
 
-// Using direct Resend API approach
+// Service and template IDs
+const SERVICE_ID = 'service_7muu8lb';
+const USER_ID = 'u4lGu23Rsw4dbrRya';
+const TEMPLATE_SUBMISSION_ID = 'template_361s7im';
+const TEMPLATE_APPROVAL_ID = 'template_s4fu2fy';
+
+// Send emails using EmailJS
 export const sendEmailNotification = async (params: EmailParams): Promise<boolean> => {
   try {
     console.log('Sending email notification:');
@@ -16,34 +22,45 @@ export const sendEmailNotification = async (params: EmailParams): Promise<boolea
     console.log(`Subject: ${params.subject}`);
     console.log(`Message: ${params.message}`);
     
-    // Using Resend API directly
-    const response = await axios.post(
-      'https://api.resend.com/emails',
-      {
-        from: 'Budget Eagle <Teamcoders03@gmail.com>',
-        to: [params.to],
-        subject: params.subject,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-            <h2 style="color: #3b82f6;">Hello ${params.name || 'there'}!</h2>
-            <div style="margin: 20px 0; line-height: 1.5;">
-              ${params.message}
-            </div>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666;">
-              <p>This is an automated message from Budget Eagle. Please do not reply to this email.</p>
-            </div>
-          </div>
-        `,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer re_G6LGnb2P_K4vPYii2CEVdtfRd1XNiirdw`,
-          'Content-Type': 'application/json',
-        },
-      }
+    // Determine which template to use based on the subject
+    const isApprovalEmail = params.subject.includes('Approved') || 
+                           params.subject.includes('Rejected') ||
+                           params.subject.includes('Approval');
+    
+    // Prepare template params based on email type
+    let templateParams;
+    let templateId;
+    
+    if (isApprovalEmail) {
+      // For approval/rejection emails
+      templateParams = {
+        manager_name: params.name || 'Manager',
+        bill_name: extractBillTitle(params.message),
+        employee_name: extractEmployeeName(params.message),
+        approval_status: params.subject.includes('Approved') ? 'approved' : 'rejected',
+        to_email: params.to,
+      };
+      templateId = TEMPLATE_APPROVAL_ID;
+    } else {
+      // For bill submission emails
+      templateParams = {
+        user_name: params.name || 'User',
+        bill_name: extractBillTitle(params.message),
+        role: determineRole(params.message),
+        to_email: params.to,
+      };
+      templateId = TEMPLATE_SUBMISSION_ID;
+    }
+    
+    // Send email using EmailJS
+    const response = await emailjs.send(
+      SERVICE_ID,
+      templateId,
+      templateParams,
+      USER_ID
     );
     
-    console.log('Email sent successfully:', response.data);
+    console.log('Email sent successfully:', response);
     return true;
   } catch (error) {
     console.error('Email service error:', error);
@@ -51,11 +68,30 @@ export const sendEmailNotification = async (params: EmailParams): Promise<boolea
   }
 };
 
-// These functions are now obsolete since we're hardcoding the API key
+// Helper functions to extract information from message
+function extractBillTitle(message: string): string {
+  const titleMatch = message.match(/"([^"]+)"/);
+  return titleMatch ? titleMatch[1] : 'Bill';
+}
+
+function extractEmployeeName(message: string): string {
+  const nameMatch = message.match(/submitted by ([^.]+)/);
+  return nameMatch ? nameMatch[1] : 'Employee';
+}
+
+function determineRole(message: string): string {
+  if (message.includes('HR')) return 'HR';
+  if (message.includes('Manager')) return 'Manager';
+  if (message.includes('Finance')) return 'Finance';
+  return 'Employee';
+}
+
+// These functions are no longer needed with EmailJS
 export const setResendApiKey = (apiKey: string): void => {
-  localStorage.setItem('RESEND_API_KEY', apiKey);
+  // Kept for backwards compatibility, does nothing now
+  console.log('EmailJS is configured, no API key needed');
 };
 
 export const hasResendApiKey = (): boolean => {
-  return true;  // Always return true since we have hardcoded the key
+  return true; // Always return true as EmailJS is configured with hardcoded credentials
 };

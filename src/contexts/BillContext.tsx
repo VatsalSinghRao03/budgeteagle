@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -26,14 +25,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user } = useAuth();
 
   useEffect(() => {
-    // Load bills from localStorage
     const savedBills = localStorage.getItem('budgetEagleBills');
     if (savedBills) {
       setBills(JSON.parse(savedBills));
     }
   }, []);
 
-  // Save bills to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('budgetEagleBills', JSON.stringify(bills));
   }, [bills]);
@@ -43,7 +40,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 800));
       
       const newBill: Bill = {
@@ -57,7 +53,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setBills(prevBills => [...prevBills, newBill]);
       
-      // Send email notifications to submitter
       await sendEmailNotification({
         to: user.email,
         subject: 'Bill Submitted Successfully',
@@ -65,7 +60,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: user.name
       });
       
-      // Notify manager
       const managerUser = {
         email: 'Managerlogin2025@gmail.com',
         name: 'Vikram Singh'
@@ -112,8 +106,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       
       if (approvedBill) {
-        // Notify the submitter
-        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, get this from the bill
+        const submitterEmail = 'Employeelogin2025@gmail.com';
         const submitterName = approvedBill.submitterName;
         
         await sendEmailNotification({
@@ -123,15 +116,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: submitterName
         });
         
-        // Notify finance
-        await sendEmailNotification({
-          to: 'Financelogin03@gmail.com',
-          subject: 'Bill Approved - Finance Update',
-          message: `A bill "${approvedBill.title}" for ₹${approvedBill.amount} from ${approvedBill.submitterName} has been approved and is ready for processing.`,
-          name: 'Arjun Reddy'
-        });
-        
-        // Notify manager about their action
         await sendEmailNotification({
           to: user.email,
           subject: 'Bill Approval Confirmation',
@@ -173,8 +157,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       
       if (rejectedBill) {
-        // Notify the submitter
-        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, get this from the bill
+        const submitterEmail = 'Employeelogin2025@gmail.com';
         const submitterName = rejectedBill.submitterName;
         
         await sendEmailNotification({
@@ -184,7 +167,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: submitterName
         });
         
-        // Notify manager about their action
         await sendEmailNotification({
           to: user.email,
           subject: 'Bill Rejection Confirmation',
@@ -193,7 +175,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
       
-      toast.info('Bill rejected');
+      toast.success('Bill rejected');
     } catch (error) {
       toast.error('Failed to reject bill');
       console.error('Reject bill error:', error);
@@ -232,12 +214,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getUserBills = (): Bill[] => {
     if (!user) return [];
     
-    // For employee and HR, show only their own bills
     if (user.role === 'employee' || user.role === 'hr') {
       return bills.filter(bill => bill.submittedBy === user.id);
     }
     
-    // Managers and finance see all bills
     return bills;
   };
 
