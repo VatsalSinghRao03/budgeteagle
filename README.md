@@ -3,7 +3,7 @@
 
 ## Project info
 
-**URL**: https://skyforecaster.netlify.app/
+**URL**: https://budget-eagle.netlify.app/login
 
 ## What technologies are used for this project?
 
