@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -15,6 +16,7 @@ interface BillContextType {
   getStats: () => AppStats;
   getUserBills: () => Bill[];
   getPendingBills: () => Bill[];
+  clearAllBills: () => void;
 }
 
 const BillContext = createContext<BillContextType | undefined>(undefined);
@@ -225,6 +227,13 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return bills.filter(bill => bill.status === 'pending');
   };
 
+  // New function to clear all bills
+  const clearAllBills = () => {
+    setBills([]);
+    localStorage.removeItem('budgetEagleBills');
+    toast.success('All bills have been cleared');
+  };
+
   return (
     <BillContext.Provider value={{ 
       bills, 
@@ -235,7 +244,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteBill,
       getStats,
       getUserBills,
-      getPendingBills
+      getPendingBills,
+      clearAllBills
     }}>
       {children}
     </BillContext.Provider>
