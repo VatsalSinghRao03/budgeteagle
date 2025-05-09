@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -148,7 +149,7 @@ const Dashboard: React.FC = () => {
           {recentBills.length > 0 ? (
             <div>
               {isUserAllowedToDelete && (
-                <div className="flex items-center mb-2 pl-6">
+                <div className="flex items-center mb-2 pl-4">
                   <Checkbox 
                     id="select-all" 
                     checked={selectAll} 
@@ -159,46 +160,32 @@ const Dashboard: React.FC = () => {
                   </label>
                 </div>
               )}
-              <table className="w-full bg-white border border-gray-200 rounded-lg">
-                <thead className="bg-gray-50">
-                  <tr>
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     {isUserAllowedToDelete && (
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Select
-                      </th>
+                      <TableHead className="w-[50px]">Select</TableHead>
                     )}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
+                    <TableHead>Title</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {recentBills.map((bill) => (
-                    <tr key={bill.id} className="hover:bg-gray-50">
+                    <TableRow key={bill.id}>
                       {isUserAllowedToDelete && (
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <TableCell>
                           <Checkbox 
                             checked={selectedBills.includes(bill.id)}
                             onCheckedChange={() => handleSelectBill(bill.id)}
                           />
-                        </td>
+                        </TableCell>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {bill.title}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatCurrency(bill.amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <TableCell className="font-medium">{bill.title}</TableCell>
+                      <TableCell>{formatCurrency(bill.amount)}</TableCell>
+                      <TableCell>
                         <span 
                           className={`px-2 py-1 text-xs rounded-full ${
                             bill.status === 'approved' ? 'bg-green-100 text-green-800' : 
@@ -208,16 +195,16 @@ const Dashboard: React.FC = () => {
                         >
                           {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>
                           <Link to="/bills">View</Link>
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="text-center py-10 text-gray-500">

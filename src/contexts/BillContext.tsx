@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -26,53 +27,119 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { user } = useAuth();
 
+  // Fetch bills from Supabase on component mount and when user changes
   useEffect(() => {
-    const savedBills = localStorage.getItem('budgetEagleBills');
-    if (savedBills) {
-      setBills(JSON.parse(savedBills));
+    if (user) {
+      fetchBills();
+    } else {
+      setBills([]);
     }
-  }, []);
+  }, [user]);
 
-  useEffect(() => {
-    localStorage.setItem('budgetEagleBills', JSON.stringify(bills));
-  }, [bills]);
+  // Fetch bills from Supabase
+  const fetchBills = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      let query = supabase.from('bills').select('*');
+      
+      if (user.role === 'employee') {
+        query = query.eq('submitted_by', user.id);
+      }
+      
+      const { data, error } = await query.order('date', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Transform data to match our Bill type
+      const transformedBills = data.map(bill => ({
+        id: bill.id,
+        title: bill.title,
+        amount: bill.amount,
+        description: bill.description,
+        fileUrl: bill.file_url,
+        fileName: bill.file_name,
+        submittedBy: bill.submitted_by,
+        submitterName: bill.submitter_name,
+        submitterDepartment: bill.submitter_department,
+        date: bill.date,
+        status: bill.status,
+        rejectionReason: bill.rejection_reason,
+        reviewedBy: bill.reviewed_by,
+        reviewedDate: bill.reviewed_date
+      }));
+      
+      setBills(transformedBills);
+    } catch (error) {
+      console.error('Error fetching bills:', error);
+      toast.error('Failed to fetch bills');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const submitBill = async (billData: Omit<Bill, 'id' | 'date' | 'status' | 'submitterName' | 'submitterDepartment'>) => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Insert bill into Supabase
+      const { data, error } = await supabase.from('bills').insert({
+        title: billData.title,
+        amount: billData.amount,
+        description: billData.description,
+        file_url: billData.fileUrl,
+        file_name: billData.fileName,
+        submitted_by: user.id,
+        submitter_name: user.name,
+        submitter_department: user.department
+      }).select();
       
-      const newBill: Bill = {
-        ...billData,
-        id: `bill-${Date.now()}`,
-        date: new Date().toISOString(),
-        status: 'pending',
-        submitterName: user.name,
-        submitterDepartment: user.department
-      };
+      if (error) throw error;
       
-      setBills(prevBills => [...prevBills, newBill]);
-      
-      await sendEmailNotification({
-        to: user.email,
-        subject: 'Bill Submitted Successfully',
-        message: `Your bill "${newBill.title}" for ₹${newBill.amount} has been submitted and is awaiting approval.`,
-        name: user.name
-      });
-      
-      const managerUser = {
-        email: 'Managerlogin2025@gmail.com',
-        name: 'Vikram Singh'
-      };
-      
-      await sendEmailNotification({
-        to: managerUser.email,
-        subject: 'New Bill Awaiting Your Approval',
-        message: `${user.name} from ${user.department} has submitted a new bill "${newBill.title}" for ₹${newBill.amount} that requires your review.`,
-        name: managerUser.name
-      });
+      if (data && data.length > 0) {
+        // Transform returned data to match Bill type
+        const newBill: Bill = {
+          id: data[0].id,
+          title: data[0].title,
+          amount: data[0].amount,
+          description: data[0].description,
+          fileUrl: data[0].file_url,
+          fileName: data[0].file_name,
+          submittedBy: data[0].submitted_by,
+          submitterName: data[0].submitter_name,
+          submitterDepartment: data[0].submitter_department,
+          date: data[0].date,
+          status: data[0].status,
+          rejectionReason: data[0].rejection_reason,
+          reviewedBy: data[0].reviewed_by,
+          reviewedDate: data[0].reviewed_date
+        };
+        
+        setBills(prevBills => [newBill, ...prevBills]);
+        
+        await sendEmailNotification({
+          to: user.email,
+          subject: 'Bill Submitted Successfully',
+          message: `Your bill "${newBill.title}" for ₹${newBill.amount} has been submitted and is awaiting approval.`,
+          name: user.name
+        });
+        
+        const managerUser = {
+          email: 'Managerlogin2025@gmail.com',
+          name: 'Vikram Singh'
+        };
+        
+        await sendEmailNotification({
+          to: managerUser.email,
+          subject: 'New Bill Awaiting Your Approval',
+          message: `${user.name} from ${user.department} has submitted a new bill "${newBill.title}" for ₹${newBill.amount} that requires your review.`,
+          name: managerUser.name
+        });
+      }
       
       toast.success('Bill submitted successfully');
       return Promise.resolve();
@@ -90,8 +157,18 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      const { error } = await supabase
+        .from('bills')
+        .update({
+          status: 'approved',
+          reviewed_by: user.id,
+          reviewed_date: new Date().toISOString()
+        })
+        .eq('id', billId);
       
+      if (error) throw error;
+      
+      // Update local state
       const approvedBill = bills.find(b => b.id === billId);
       
       setBills(prevBills => 
@@ -108,7 +185,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       
       if (approvedBill) {
-        const submitterEmail = 'Employeelogin2025@gmail.com';
+        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, fetch this from the database
         const submitterName = approvedBill.submitterName;
         
         await sendEmailNotification({
@@ -140,8 +217,19 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      const { error } = await supabase
+        .from('bills')
+        .update({
+          status: 'rejected',
+          rejection_reason: reason,
+          reviewed_by: user.id,
+          reviewed_date: new Date().toISOString()
+        })
+        .eq('id', billId);
       
+      if (error) throw error;
+      
+      // Update local state
       const rejectedBill = bills.find(b => b.id === billId);
       
       setBills(prevBills => 
@@ -159,7 +247,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       
       if (rejectedBill) {
-        const submitterEmail = 'Employeelogin2025@gmail.com';
+        const submitterEmail = 'Employeelogin2025@gmail.com'; // In a real app, fetch this from the database
         const submitterName = rejectedBill.submitterName;
         
         await sendEmailNotification({
@@ -189,7 +277,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteBill = async (billId: string) => {
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      const { error } = await supabase
+        .from('bills')
+        .delete()
+        .eq('id', billId);
+      
+      if (error) throw error;
       
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
       toast.success('Bill deleted successfully');
@@ -201,13 +294,17 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // New function to delete multiple selected bills
   const deleteSelectedBills = async (billIds: string[]) => {
     if (billIds.length === 0) return;
     
     setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      const { error } = await supabase
+        .from('bills')
+        .delete()
+        .in('id', billIds);
+      
+      if (error) throw error;
       
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
       
@@ -248,10 +345,35 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return bills.filter(bill => bill.status === 'pending');
   };
 
-  const clearAllBills = () => {
-    setBills([]);
-    localStorage.removeItem('budgetEagleBills');
-    toast.success('All bills have been cleared');
+  const clearAllBills = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      // Only delete bills submitted by the current user if they're an employee or HR
+      let query = supabase.from('bills').delete();
+      
+      if (user.role === 'employee' || user.role === 'hr') {
+        query = query.eq('submitted_by', user.id);
+      }
+      
+      const { error } = await query;
+      
+      if (error) throw error;
+      
+      if (user.role === 'employee' || user.role === 'hr') {
+        setBills(prevBills => prevBills.filter(bill => bill.submittedBy !== user.id));
+      } else {
+        setBills([]);
+      }
+      
+      toast.success('All bills have been cleared');
+    } catch (error) {
+      toast.error('Failed to clear bills');
+      console.error('Clear bills error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

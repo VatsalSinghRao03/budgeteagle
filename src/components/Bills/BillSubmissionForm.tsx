@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const BillSubmissionForm: React.FC = () => {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ const BillSubmissionForm: React.FC = () => {
   });
   
   const [fileUpload, setFileUpload] = useState<File | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -42,13 +45,39 @@ const BillSubmissionForm: React.FC = () => {
     if (!user) return;
     
     try {
+      let fileUrl;
+      
+      // Upload file to Supabase storage if a file is selected
+      if (fileUpload) {
+        setFileUploading(true);
+        
+        // Create unique file path with user ID and timestamp
+        const filePath = `${user.id}/${uuidv4()}-${fileUpload.name}`;
+        
+        const { data, error } = await supabase.storage
+          .from('bill-receipts')
+          .upload(filePath, fileUpload);
+          
+        if (error) {
+          throw error;
+        }
+        
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from('bill-receipts')
+          .getPublicUrl(filePath);
+          
+        fileUrl = urlData.publicUrl;
+        setFileUploading(false);
+      }
+      
       await submitBill({
         title: billData.title,
         amount: parseFloat(billData.amount),
         description: billData.description,
         submittedBy: user.id,
         fileName: billData.fileName,
-        fileUrl: fileUpload ? URL.createObjectURL(fileUpload) : undefined,
+        fileUrl: fileUrl,
       });
       
       navigate('/bills');
@@ -146,10 +175,10 @@ const BillSubmissionForm: React.FC = () => {
           </Button>
           <Button 
             type="submit"
-            disabled={isLoading || !billData.title || !billData.amount}
+            disabled={isLoading || fileUploading || !billData.title || !billData.amount}
             className="btn-primary"
           >
-            {isLoading ? 'Submitting...' : 'Submit Bill'}
+            {isLoading || fileUploading ? 'Submitting...' : 'Submit Bill'}
           </Button>
         </div>
       </form>

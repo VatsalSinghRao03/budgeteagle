@@ -9,7 +9,99 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bills: {
+        Row: {
+          amount: number
+          date: string
+          description: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          rejection_reason: string | null
+          reviewed_by: string | null
+          reviewed_date: string | null
+          status: string
+          submitted_by: string
+          submitter_department: string
+          submitter_name: string
+          title: string
+        }
+        Insert: {
+          amount: number
+          date?: string
+          description: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_by?: string | null
+          reviewed_date?: string | null
+          status?: string
+          submitted_by: string
+          submitter_department: string
+          submitter_name: string
+          title: string
+        }
+        Update: {
+          amount?: number
+          date?: string
+          description?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_by?: string | null
+          reviewed_date?: string | null
+          status?: string
+          submitted_by?: string
+          submitter_department?: string
+          submitter_name?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar: string | null
+          department: string
+          email: string
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          avatar?: string | null
+          department: string
+          email: string
+          id: string
+          name: string
+          role: string
+        }
+        Update: {
+          avatar?: string | null
+          department?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
