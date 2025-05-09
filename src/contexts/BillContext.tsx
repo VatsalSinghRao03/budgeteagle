@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -13,6 +12,7 @@ interface BillContextType {
   approveBill: (billId: string) => Promise<void>;
   rejectBill: (billId: string, reason: string) => Promise<void>;
   deleteBill: (billId: string) => Promise<void>;
+  deleteSelectedBills: (billIds: string[]) => Promise<void>;
   getStats: () => AppStats;
   getUserBills: () => Bill[];
   getPendingBills: () => Bill[];
@@ -201,6 +201,27 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // New function to delete multiple selected bills
+  const deleteSelectedBills = async (billIds: string[]) => {
+    if (billIds.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      
+      setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
+      
+      toast.success(billIds.length === 1 
+        ? 'Bill deleted successfully' 
+        : `${billIds.length} bills deleted successfully`);
+    } catch (error) {
+      toast.error('Failed to delete bills');
+      console.error('Delete bills error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getStats = (): AppStats => {
     const userBills = getUserBills();
     
@@ -227,7 +248,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return bills.filter(bill => bill.status === 'pending');
   };
 
-  // New function to clear all bills
   const clearAllBills = () => {
     setBills([]);
     localStorage.removeItem('budgetEagleBills');
@@ -242,6 +262,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       approveBill, 
       rejectBill, 
       deleteBill,
+      deleteSelectedBills,
       getStats,
       getUserBills,
       getPendingBills,

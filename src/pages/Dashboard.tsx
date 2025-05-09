@@ -1,21 +1,59 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBill } from '@/contexts/BillContext';
 import PageTitle from '@/components/Common/PageTitle';
 import StatsCard from '@/components/Common/StatsCard';
 import BillTable from '@/components/Bills/BillTable';
 import { formatCurrency } from '@/utils/formatters';
-import { FileText, IndianRupee, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, IndianRupee, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { getUserBills, getStats } = useBill();
+  const { getUserBills, getStats, deleteSelectedBills } = useBill();
   
   const userBills = getUserBills();
   const stats = getStats();
   const recentBills = userBills.slice(0, 5); // Get only the most recent 5 bills
+  
+  const [selectedBills, setSelectedBills] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState<boolean>(false);
+
+  const handleSelectBill = (billId: string) => {
+    setSelectedBills(prev => {
+      if (prev.includes(billId)) {
+        return prev.filter(id => id !== billId);
+      } else {
+        return [...prev, billId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedBills([]);
+    } else {
+      setSelectedBills(recentBills.map(bill => bill.id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedBills.length === 0) {
+      toast.error('No bills selected');
+      return;
+    }
+    
+    await deleteSelectedBills(selectedBills);
+    setSelectedBills([]);
+    setSelectAll(false);
+  };
+
+  const isUserAllowedToDelete = user?.role === 'employee' || user?.role === 'hr';
   
   return (
     <div className="page-container">
@@ -85,15 +123,102 @@ const Dashboard: React.FC = () => {
                   : 'Your recent bill submissions'}
               </span>
             </h2>
-            <Link to="/bills">
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
-            </Link>
+            <div className="flex space-x-2">
+              {isUserAllowedToDelete && recentBills.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedBills.length === 0}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Selected 
+                  {selectedBills.length > 0 && ` (${selectedBills.length})`}
+                </Button>
+              )}
+              <Link to="/bills">
+                <Button variant="ghost" size="sm">
+                  View All
+                </Button>
+              </Link>
+            </div>
           </div>
           
           {recentBills.length > 0 ? (
-            <BillTable bills={recentBills} showFilters={false} />
+            <div>
+              {isUserAllowedToDelete && (
+                <div className="flex items-center mb-2 pl-6">
+                  <Checkbox 
+                    id="select-all" 
+                    checked={selectAll} 
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <label htmlFor="select-all" className="ml-2 text-sm text-gray-500">
+                    Select All
+                  </label>
+                </div>
+              )}
+              <table className="w-full bg-white border border-gray-200 rounded-lg">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {isUserAllowedToDelete && (
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Select
+                      </th>
+                    )}
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {recentBills.map((bill) => (
+                    <tr key={bill.id} className="hover:bg-gray-50">
+                      {isUserAllowedToDelete && (
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <Checkbox 
+                            checked={selectedBills.includes(bill.id)}
+                            onCheckedChange={() => handleSelectBill(bill.id)}
+                          />
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {bill.title}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatCurrency(bill.amount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            bill.status === 'approved' ? 'bg-green-100 text-green-800' : 
+                            bill.status === 'rejected' ? 'bg-red-100 text-red-800' : 
+                            'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {bill.status.charAt(0).toUpperCase() + bill.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to="/bills">View</Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="text-center py-10 text-gray-500">
               <p>No recent bills found.</p>
