@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBill } from '@/contexts/BillContext';
@@ -59,7 +58,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="page-container">
       <PageTitle 
-        title={`Welcome, ${user?.name}`} 
+        title={`Welcome, ${user?.name || 'User'}`} 
         subtitle={
           user?.role === 'employee' 
             ? 'Review your budget requests and submit new expenses.'

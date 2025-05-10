@@ -1,8 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
@@ -12,12 +13,33 @@ interface AuthContextType {
   logout: () => void;
 }
 
+interface UserMetadata {
+  name?: string;
+  role?: 'employee' | 'hr' | 'manager' | 'finance';
+  department?: string;
+  avatar?: string;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Helper function to convert Supabase User to our App User
+  const mapToAppUser = (supabaseUser: SupabaseUser): User => {
+    const metadata = supabaseUser.user_metadata as UserMetadata;
+    
+    return {
+      id: supabaseUser.id,
+      name: metadata?.name || 'User',
+      email: supabaseUser.email || '',
+      role: metadata?.role || 'employee',
+      department: metadata?.department || 'General',
+      avatar: metadata?.avatar
+    };
+  };
 
   useEffect(() => {
     // First set up the auth state listener
@@ -27,7 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          setUser(session.user);
+          const appUser = mapToAppUser(session.user);
+          setUser(appUser);
           
           // Fetch profile data in a separate call to avoid recursion
           setTimeout(() => {
@@ -45,7 +68,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       
       if (session?.user) {
-        setUser(session.user);
+        const appUser = mapToAppUser(session.user);
+        setUser(appUser);
         // Fetch profile data
         fetchUserProfile(session.user.id);
       }
@@ -76,13 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!prev) return null;
           return {
             ...prev,
-            user_metadata: {
-              ...prev.user_metadata,
-              name: profileData.name,
-              role: profileData.role,
-              department: profileData.department,
-              avatar: profileData.avatar
-            }
+            name: profileData.name,
+            role: profileData.role as 'employee' | 'hr' | 'manager' | 'finance',
+            department: profileData.department,
+            avatar: profileData.avatar
           };
         });
       }
@@ -182,7 +203,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       if (signInData.user) {
-        toast.success(`Welcome back, ${signInData.user.user_metadata.name || 'User'}!`);
+        const appUser = mapToAppUser(signInData.user);
+        toast.success(`Welcome back, ${appUser.name}!`);
       } else {
         toast.success('Login successful');
       }

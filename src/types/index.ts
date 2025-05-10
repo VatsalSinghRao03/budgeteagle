@@ -8,6 +8,10 @@ export interface User {
   avatar?: string;
 }
 
+export interface AppUser extends User {
+  // Additional fields for app-specific user data
+}
+
 export interface Bill {
   id: string;
   title: string;
