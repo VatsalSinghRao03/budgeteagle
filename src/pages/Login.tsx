@@ -39,7 +39,7 @@ const Login: React.FC = () => {
     }
   };
   
-  const handleCreateTestAccount = async (testEmail: string) => {
+  const handleDemoLogin = async (testEmail: string) => {
     setProcessingAccount(testEmail);
     setEmail(testEmail);
     setPassword('password');
@@ -152,7 +152,7 @@ const Login: React.FC = () => {
               ].map(account => (
                 <button 
                   key={account.email}
-                  onClick={() => handleCreateTestAccount(account.email)}
+                  onClick={() => handleDemoLogin(account.email)}
                   className="w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-sm transition-colors flex items-center"
                   disabled={isLoading || !!processingAccount}
                 >

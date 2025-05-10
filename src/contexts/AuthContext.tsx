@@ -200,6 +200,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
           
+          // Create profile entry in the profiles table
+          try {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: signUpData.user?.id,
+                name: sampleUser.name,
+                email: sampleUser.email,
+                role: sampleUser.role,
+                department: sampleUser.department
+              });
+              
+            if (profileError) {
+              console.error('Error creating profile:', profileError);
+            }
+          } catch (err) {
+            console.error('Error in profile creation:', err);
+          }
+          
           console.log('Account created, attempting to sign in');
           
           // Try signing in again
