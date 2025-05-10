@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -66,7 +65,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         submitterName: bill.submitter_name,
         submitterDepartment: bill.submitter_department,
         date: bill.date,
-        status: bill.status,
+        status: bill.status as "pending" | "approved" | "rejected",
         rejectionReason: bill.rejection_reason,
         reviewedBy: bill.reviewed_by,
         reviewedDate: bill.reviewed_date
@@ -113,7 +112,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           submitterName: data[0].submitter_name,
           submitterDepartment: data[0].submitter_department,
           date: data[0].date,
-          status: data[0].status,
+          status: data[0].status as "pending" | "approved" | "rejected",
           rejectionReason: data[0].rejection_reason,
           reviewedBy: data[0].reviewed_by,
           reviewedDate: data[0].reviewed_date
@@ -176,7 +175,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           bill.id === billId 
             ? { 
                 ...bill, 
-                status: 'approved', 
+                status: "approved", 
                 reviewedBy: user.id,
                 reviewedDate: new Date().toISOString()
               } 
@@ -237,7 +236,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           bill.id === billId 
             ? { 
                 ...bill, 
-                status: 'rejected',
+                status: "rejected" as const,
                 rejectionReason: reason,
                 reviewedBy: user.id,
                 reviewedDate: new Date().toISOString()
