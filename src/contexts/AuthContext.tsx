@@ -132,51 +132,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Check if user exists in Supabase auth
-      const { data: { user: authUser }, error: signInError } = await supabase.auth.signInWithPassword({
+      // First try to sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
       if (signInError) {
-        // Check if this is a sample user that needs to be created
-        const sampleUser = sampleUsers.find(u => u.email === email && u.password === password);
+        console.log('Sign-in error, attempting to create account:', signInError.message);
+        
+        // If sign in failed, check if this is a sample user that needs to be created
+        const sampleUser = sampleUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
         
         if (sampleUser) {
-          // Create the user in Supabase auth
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
+          console.log('Creating sample user account:', sampleUser.email);
+          
+          // Create the user in Supabase auth with autoconfirm enabled
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: sampleUser.email,
+            password: sampleUser.password,
             options: {
               data: {
                 name: sampleUser.name,
                 role: sampleUser.role,
                 department: sampleUser.department
-              }
+              },
+              emailRedirectTo: window.location.origin
             }
           });
           
           if (signUpError) {
+            console.error('Error creating sample user:', signUpError);
             throw signUpError;
           }
           
           // Try signing in again
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email,
-            password
+          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email: sampleUser.email,
+            password: sampleUser.password
           });
           
           if (retryError) {
+            console.error('Error signing in after account creation:', retryError);
             throw retryError;
           }
           
+          console.log('Successfully created and signed in as sample user');
           toast.success(`Welcome, ${sampleUser.name}!`);
           return true;
         } else {
+          console.error('Not a sample user, cannot auto-create');
           throw signInError;
         }
       }
       
+      console.log('Login successful');
       toast.success('Login successful');
       return true;
     } catch (error) {

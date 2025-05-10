@@ -1,22 +1,56 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const { login, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(email, password);
-    if (success) {
-      navigate('/dashboard');
+    setLoginError(null);
+    
+    try {
+      const success = await login(email, password);
+      if (success) {
+        toast.success('Login successful! Redirecting to dashboard...');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError('Invalid email or password. Please try again.');
+    }
+  };
+  
+  const handleCreateTestAccount = async (testEmail: string) => {
+    setEmail(testEmail);
+    setPassword('password');
+    setLoginError(null);
+    
+    try {
+      const success = await login(testEmail, 'password');
+      if (success) {
+        toast.success('Login successful! Redirecting to dashboard...');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Login error with test account:', error);
+      setLoginError('Could not log in with test account. Please try again.');
     }
   };
   
@@ -49,6 +83,12 @@ const Login: React.FC = () => {
         
         <div className="max-w-md w-full px-6 py-8 bg-white rounded-lg shadow-xl z-10">
           <h2 className="text-2xl font-semibold text-center mb-6">Log In</h2>
+          
+          {loginError && (
+            <div className="p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
+              {loginError}
+            </div>
+          )}
           
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -88,13 +128,23 @@ const Login: React.FC = () => {
           
           <div className="mt-6 p-4 bg-blue-50 rounded-md">
             <p className="text-sm text-gray-700 font-medium mb-2">Demo Accounts:</p>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>Employee (Rahul): Employeelogin2025@gmail.com</li>
-              <li>HR (Priya): Hrlogin@gmail.com</li>
-              <li>Manager (Vikram): Managerlogin2025@gmail.com</li>
-              <li>Finance (Arjun): Financelogin03@gmail.com</li>
-              <li className="text-xs text-gray-500">Password for all accounts: password</li>
-            </ul>
+            <div className="space-y-2">
+              {[
+                { role: 'Employee (Rahul)', email: 'Employeelogin2025@gmail.com' },
+                { role: 'HR (Priya)', email: 'Hrlogin@gmail.com' },
+                { role: 'Manager (Vikram)', email: 'Managerlogin2025@gmail.com' },
+                { role: 'Finance (Arjun)', email: 'Financelogin03@gmail.com' }
+              ].map(account => (
+                <button 
+                  key={account.email}
+                  onClick={() => handleCreateTestAccount(account.email)}
+                  className="w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-sm transition-colors"
+                >
+                  {account.role}: {account.email}
+                </button>
+              ))}
+              <p className="text-xs text-gray-500 pt-1">Password for all accounts: password</p>
+            </div>
           </div>
         </div>
       </div>
