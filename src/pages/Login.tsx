@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [processingAccount, setProcessingAccount] = useState<string | null>(null);
   const { login, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
@@ -38,20 +40,84 @@ const Login: React.FC = () => {
   };
   
   const handleCreateTestAccount = async (testEmail: string) => {
+    setProcessingAccount(testEmail);
     setEmail(testEmail);
     setPassword('password');
     setLoginError(null);
     
     try {
+      // First try to sign in directly
       const success = await login(testEmail, 'password');
       if (success) {
         toast.success('Login successful! Redirecting to dashboard...');
         navigate('/dashboard');
+        setProcessingAccount(null);
+        return;
       }
-    } catch (error) {
-      console.error('Login error with test account:', error);
-      setLoginError('Could not log in with test account. Please try again.');
+    } catch (error: any) {
+      // If sign in fails, attempt to create the account
+      console.log('Login failed, attempting to create account:', error.message);
+      
+      try {
+        // Create new account
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: testEmail,
+          password: 'password',
+          options: {
+            data: {
+              name: getSampleUserName(testEmail),
+              role: getSampleUserRole(testEmail),
+              department: getSampleUserDepartment(testEmail)
+            }
+          }
+        });
+        
+        if (signUpError) {
+          console.error('Error creating account:', signUpError);
+          setLoginError(`Failed to create test account: ${signUpError.message}`);
+          setProcessingAccount(null);
+          return;
+        }
+        
+        toast.success('Account created successfully! Attempting login...');
+        
+        // Try signing in after account creation
+        const success = await login(testEmail, 'password');
+        if (success) {
+          toast.success('Login successful! Redirecting to dashboard...');
+          navigate('/dashboard');
+        }
+      } catch (createError) {
+        console.error('Error during account creation flow:', createError);
+        setLoginError('Could not create or log in with test account. Please try again.');
+      }
+    } finally {
+      setProcessingAccount(null);
     }
+  };
+  
+  const getSampleUserName = (email: string): string => {
+    if (email.toLowerCase().includes('employee')) return 'Rahul Sharma';
+    if (email.toLowerCase().includes('hr')) return 'Priya Patel';
+    if (email.toLowerCase().includes('manager')) return 'Vikram Singh';
+    if (email.toLowerCase().includes('finance')) return 'Arjun Reddy';
+    return 'New User';
+  };
+  
+  const getSampleUserRole = (email: string): string => {
+    if (email.toLowerCase().includes('employee')) return 'employee';
+    if (email.toLowerCase().includes('hr')) return 'hr';
+    if (email.toLowerCase().includes('manager')) return 'manager';
+    if (email.toLowerCase().includes('finance')) return 'finance';
+    return 'employee';
+  };
+  
+  const getSampleUserDepartment = (email: string): string => {
+    if (email.toLowerCase().includes('employee')) return 'Marketing';
+    if (email.toLowerCase().includes('hr')) return 'Human Resources';
+    if (email.toLowerCase().includes('manager')) return 'Operations';
+    if (email.toLowerCase().includes('finance')) return 'Finance';
+    return 'General';
   };
   
   return (
@@ -101,6 +167,7 @@ const Login: React.FC = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  disabled={isLoading}
                 />
               </div>
               
@@ -113,6 +180,7 @@ const Login: React.FC = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
+                  disabled={isLoading}
                 />
               </div>
               
@@ -121,7 +189,12 @@ const Login: React.FC = () => {
                 className="w-full bg-brand-blue hover:bg-blue-700"
                 disabled={isLoading}
               >
-                {isLoading ? 'Logging in...' : 'Log In'}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : 'Log In'}
               </Button>
             </div>
           </form>
@@ -138,9 +211,13 @@ const Login: React.FC = () => {
                 <button 
                   key={account.email}
                   onClick={() => handleCreateTestAccount(account.email)}
-                  className="w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-sm transition-colors"
+                  className="w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-sm transition-colors flex items-center"
+                  disabled={isLoading || !!processingAccount}
                 >
-                  {account.role}: {account.email}
+                  {processingAccount === account.email ? (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  ) : null}
+                  <span>{account.role}: {account.email}</span>
                 </button>
               ))}
               <p className="text-xs text-gray-500 pt-1">Password for all accounts: password</p>

@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types';
+import { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Session, AuthError } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -21,83 +20,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Set up auth state listener
+    // First set up the auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile data
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (error) {
-            console.error('Error fetching user profile:', error);
-            setUser(null);
-            return;
-          }
+          setUser(session.user);
           
-          if (profileData) {
-            // Create user object from profile data
-            setUser({
-              id: session.user.id,
-              name: profileData.name,
-              email: profileData.email,
-              role: profileData.role as 'employee' | 'hr' | 'manager' | 'finance',
-              department: profileData.department,
-              avatar: profileData.avatar
-            });
-          } else {
-            setUser(null);
-          }
+          // Fetch profile data in a separate call to avoid recursion
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
         } else {
           setUser(null);
         }
       }
     );
     
-    // Check for existing session on mount
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       
       if (session?.user) {
-        // Fetch user profile data
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error }) => {
-            if (error) {
-              console.error('Error fetching user profile:', error);
-              setUser(null);
-              return;
-            }
-            
-            if (profileData) {
-              // Create user object from profile data
-              setUser({
-                id: session.user.id,
-                name: profileData.name,
-                email: profileData.email,
-                role: profileData.role as 'employee' | 'hr' | 'manager' | 'finance',
-                department: profileData.department,
-                avatar: profileData.avatar
-              });
-            }
-          });
+        setUser(session.user);
+        // Fetch profile data
+        fetchUserProfile(session.user.id);
       }
     });
-
+    
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  // Sample user data for Supabase signup (in a real app, this would come from a signup form)
+  // Fetch user profile data
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+      
+      if (profileData) {
+        // Update user with profile data
+        setUser(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            user_metadata: {
+              ...prev.user_metadata,
+              name: profileData.name,
+              role: profileData.role,
+              department: profileData.department,
+              avatar: profileData.avatar
+            }
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Error in profile fetch:', error);
+    }
+  };
+
+  // Sample user data for Supabase signup
   const sampleUsers = [
     {
       email: 'Employeelogin2025@gmail.com',
@@ -147,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (sampleUser) {
           console.log('Creating sample user account:', sampleUser.email);
           
-          // Create the user in Supabase auth with autoconfirm enabled
+          // Create the user in Supabase auth
           const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: sampleUser.email,
             password: sampleUser.password,
@@ -156,8 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: sampleUser.name,
                 role: sampleUser.role,
                 department: sampleUser.department
-              },
-              emailRedirectTo: window.location.origin
+              }
             }
           });
           
@@ -165,6 +158,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Error creating sample user:', signUpError);
             throw signUpError;
           }
+          
+          console.log('Account created, attempting to sign in');
           
           // Try signing in again
           const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
@@ -181,17 +176,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           toast.success(`Welcome, ${sampleUser.name}!`);
           return true;
         } else {
-          console.error('Not a sample user, cannot auto-create');
+          console.error('Login failed, not a sample user');
           throw signInError;
         }
       }
       
-      console.log('Login successful');
-      toast.success('Login successful');
+      if (signInData.user) {
+        toast.success(`Welcome back, ${signInData.user.user_metadata.name || 'User'}!`);
+      } else {
+        toast.success('Login successful');
+      }
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Invalid email or password');
+      toast.error('Login failed. Please check your credentials and try again.');
       return false;
     } finally {
       setIsLoading(false);
@@ -199,17 +197,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      toast.info('You have been logged out');
+    } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
-      return;
     }
-    
-    setUser(null);
-    setSession(null);
-    toast.info('You have been logged out');
   };
   
   return (
