@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -28,6 +27,7 @@ const Login: React.FC = () => {
     setLoginError(null);
     
     try {
+      console.log('Submitting login form with email:', email);
       const success = await login(email, password);
       if (success) {
         toast.success('Login successful! Redirecting to dashboard...');
@@ -45,79 +45,21 @@ const Login: React.FC = () => {
     setPassword('password');
     setLoginError(null);
     
+    console.log('Attempting to login with test account:', testEmail);
+    
     try {
-      // First try to sign in directly
+      // Try to log in directly with the test account
       const success = await login(testEmail, 'password');
       if (success) {
         toast.success('Login successful! Redirecting to dashboard...');
         navigate('/dashboard');
-        setProcessingAccount(null);
-        return;
       }
     } catch (error: any) {
-      // If sign in fails, attempt to create the account
-      console.log('Login failed, attempting to create account:', error.message);
-      
-      try {
-        // Create new account
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: testEmail,
-          password: 'password',
-          options: {
-            data: {
-              name: getSampleUserName(testEmail),
-              role: getSampleUserRole(testEmail),
-              department: getSampleUserDepartment(testEmail)
-            }
-          }
-        });
-        
-        if (signUpError) {
-          console.error('Error creating account:', signUpError);
-          setLoginError(`Failed to create test account: ${signUpError.message}`);
-          setProcessingAccount(null);
-          return;
-        }
-        
-        toast.success('Account created successfully! Attempting login...');
-        
-        // Try signing in after account creation
-        const success = await login(testEmail, 'password');
-        if (success) {
-          toast.success('Login successful! Redirecting to dashboard...');
-          navigate('/dashboard');
-        }
-      } catch (createError) {
-        console.error('Error during account creation flow:', createError);
-        setLoginError('Could not create or log in with test account. Please try again.');
-      }
+      console.error('Test account login error:', error);
+      setLoginError(`Failed to login with test account: ${error.message}`);
     } finally {
       setProcessingAccount(null);
     }
-  };
-  
-  const getSampleUserName = (email: string): string => {
-    if (email.toLowerCase().includes('employee')) return 'Rahul Sharma';
-    if (email.toLowerCase().includes('hr')) return 'Priya Patel';
-    if (email.toLowerCase().includes('manager')) return 'Vikram Singh';
-    if (email.toLowerCase().includes('finance')) return 'Arjun Reddy';
-    return 'New User';
-  };
-  
-  const getSampleUserRole = (email: string): string => {
-    if (email.toLowerCase().includes('employee')) return 'employee';
-    if (email.toLowerCase().includes('hr')) return 'hr';
-    if (email.toLowerCase().includes('manager')) return 'manager';
-    if (email.toLowerCase().includes('finance')) return 'finance';
-    return 'employee';
-  };
-  
-  const getSampleUserDepartment = (email: string): string => {
-    if (email.toLowerCase().includes('employee')) return 'Marketing';
-    if (email.toLowerCase().includes('hr')) return 'Human Resources';
-    if (email.toLowerCase().includes('manager')) return 'Operations';
-    if (email.toLowerCase().includes('finance')) return 'Finance';
-    return 'General';
   };
   
   return (

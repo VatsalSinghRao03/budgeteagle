@@ -147,6 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
+      console.log('Attempting to sign in with:', email);
+      
       // First try to sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -177,7 +179,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (signUpError) {
             console.error('Error creating sample user:', signUpError);
-            throw signUpError;
+            // Check if it's a "User already registered" error, which means we can try signing in
+            if (signUpError.message.includes('already registered')) {
+              console.log('User already exists, trying to sign in directly');
+              const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+                email: sampleUser.email,
+                password: sampleUser.password
+              });
+              
+              if (retryError) {
+                console.error('Error signing in after account creation:', retryError);
+                throw retryError;
+              }
+              
+              console.log('Successfully signed in as existing sample user');
+              toast.success(`Welcome, ${sampleUser.name}!`);
+              return true;
+            } else {
+              throw signUpError;
+            }
           }
           
           console.log('Account created, attempting to sign in');
@@ -209,7 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success('Login successful');
       }
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       toast.error('Login failed. Please check your credentials and try again.');
       return false;
