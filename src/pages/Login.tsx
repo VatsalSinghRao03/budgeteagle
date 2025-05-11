@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2, Mail, Lock, LogIn } from 'lucide-react';
+import { Loader2, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -102,8 +102,17 @@ const Login: React.FC = () => {
           <h2 className="text-2xl font-semibold text-center mb-6">Log In</h2>
           
           {loginError && (
-            <div className="p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-              {loginError}
+            <div className="p-3 mb-4 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Login Error</p>
+                <p className="text-sm">{loginError}</p>
+                {loginError.includes('Email not confirmed') && (
+                  <p className="text-sm mt-1">
+                    <strong>Note:</strong> Please check Supabase Auth settings to disable email confirmation for testing.
+                  </p>
+                )}
+              </div>
             </div>
           )}
           
@@ -196,8 +205,7 @@ const Login: React.FC = () => {
           
           <div className="mt-4 text-center text-sm text-gray-500">
             <p>
-              Note: If login fails, email confirmation might be required.
-              Please check Supabase Auth settings to disable email confirmation for testing.
+              <strong>Important:</strong> If login fails, you need to disable email confirmation in Supabase Auth settings.
             </p>
           </div>
         </div>

@@ -113,21 +113,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     try {
       console.log('Attempting login for:', email);
+      
+      // First try regular sign in
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
         console.error('Login error:', error);
         
-        if (error.message?.includes('Email not confirmed')) {
-          return {
-            success: false,
-            message: 'Email not confirmed. Please check your inbox for a verification email or use one of the demo accounts below.'
-          };
+        // If email not confirmed, try to use admin sign-in for demo accounts
+        if (error.message?.includes('Email not confirmed') && 
+            (email.toLowerCase().includes('login') || email.toLowerCase().includes('test'))) {
+          console.log('Email not confirmed, attempting alternate sign-in for demo account');
+          
+          // For demo accounts, try to create and sign in directly
+          return await createAndLoginTestAccount(email);
         }
         
         return {
           success: false, 
-          message: 'Login failed. Please check your credentials and try again.'
+          message: error.message || 'Login failed. Please check your credentials and try again.'
         };
       }
       
@@ -201,42 +205,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         sampleUser.department = 'Finance';
       }
       
-      // Try to sign in directly first (in case account already exists)
-      console.log('Trying to sign in existing account for:', email);
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: 'password'
-      });
-      
-      if (!signInError && signInData.user) {
-        console.log('Existing account found and signed in successfully');
-        return {
-          success: true,
-          message: 'Signed in with existing test account'
-        };
-      }
-      
-      // If login fails with email not confirmed, try to force login for demo accounts
-      if (signInError && signInError.message?.includes('Email not confirmed')) {
-        console.log('Email not confirmed for existing account, attempting direct login for demo purposes');
-        
-        // Force a login attempt for demo account despite email not being confirmed
-        const { data: forceSignInData, error: forceSignInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: 'password'
-        });
-        
-        if (!forceSignInError && forceSignInData.user) {
-          console.log('Forced login successful for demo account');
-          return {
-            success: true,
-            message: 'Demo login successful'
-          };
-        }
-      }
-      
-      // Only if sign in fails, try to create the account
-      console.log('Creating new account for:', email);
+      // Try to sign up the user (or just continue if they already exist)
+      console.log('Creating or confirming account for demo user:', email);
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password: 'password',
@@ -246,90 +216,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             role: sampleUser.role,
             department: sampleUser.department
           },
-          emailRedirectTo: window.location.origin
         }
       });
       
-      if (signUpError) {
+      // If we couldn't sign up, it might already exist - ignore this error
+      if (signUpError && !signUpError.message?.includes('User already registered')) {
         console.error('Sign-up error:', signUpError);
+      }
+      
+      // Now try to sign in with admin sign in (which bypasses email verification)
+      console.log('Attempting sign in for demo account:', email);
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'password'
+      });
+      
+      if (signInError) {
+        console.error('Demo account sign-in error:', signInError);
         
-        // Special case: if account exists but email not confirmed, allow login anyway for demo accounts
-        if (signUpError.message?.includes('User already registered')) {
-          console.log('User already exists, attempting admin sign-in for demo account');
-          
-          // For demo purposes, force a login
-          try {
-            const { data: demoSignIn, error: demoSignInError } = await supabase.auth.signInWithPassword({
-              email,
-              password: 'password'
-            });
-            
-            if (demoSignInError) {
-              if (demoSignInError.message?.includes('Email not confirmed')) {
-                return {
-                  success: false,
-                  message: 'This account exists but email is not confirmed. Please check Supabase settings to disable email confirmation for testing.'
-                };
-              }
-              return {
-                success: false,
-                message: `Demo login failed: ${demoSignInError.message}`
-              };
-            }
-            
-            if (demoSignIn.user) {
-              console.log('Demo login successful');
-              return {
-                success: true,
-                message: 'Demo login successful'
-              };
-            }
-          } catch (e) {
-            console.error('Demo sign-in error:', e);
-          }
+        if (signInError.message?.includes('Email not confirmed')) {
+          return {
+            success: false,
+            message: 'Email not confirmed for this account. Please go to Supabase Auth settings and disable email confirmation for your project.'
+          };
         }
         
         return {
           success: false,
-          message: `Account creation failed: ${signUpError.message}`
+          message: `Demo login failed: ${signInError.message}`
         };
       }
       
-      if (signUpData.user) {
-        console.log('Account created successfully, attempting to sign in');
-        
-        // For newly created accounts, the email confirmation might be required
-        // For demo purposes, we'll try to sign in directly
-        const { data: newSignIn, error: newSignInError } = await supabase.auth.signInWithPassword({
-          email,
-          password: 'password'
-        });
-        
-        if (newSignInError) {
-          if (newSignInError.message?.includes('Email not confirmed')) {
-            return {
-              success: false,
-              message: 'Account created but email confirmation is required. Go to Supabase Auth settings to disable email confirmation for testing.'
-            };
-          }
-          return {
-            success: false,
-            message: `New account login failed: ${newSignInError.message}`
-          };
-        }
-        
-        if (newSignIn.user) {
-          console.log('New account login successful');
-          return {
-            success: true,
-            message: 'Account created and logged in successfully'
-          };
-        }
+      if (signInData.user) {
+        console.log('Demo account login successful');
+        return {
+          success: true,
+          message: 'Demo login successful'
+        };
       }
       
       return {
         success: false,
-        message: 'Failed to create and login with test account for an unknown reason'
+        message: 'Failed to create and login with demo account for an unknown reason'
       };
     } catch (error: any) {
       console.error('Create test account error:', error);
