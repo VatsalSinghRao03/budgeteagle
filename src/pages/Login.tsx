@@ -28,16 +28,17 @@ const Login: React.FC = () => {
     
     try {
       console.log('Submitting login form with email:', email);
-      const success = await login(email, password);
+      const { success, message } = await login(email, password);
+      
       if (success) {
         toast.success('Login successful! Redirecting to dashboard...');
         navigate('/dashboard');
       } else {
-        setLoginError('Login failed. Please check your credentials and try again.');
+        setLoginError(message);
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError(error.message || 'Invalid email or password. Please try again.');
+      setLoginError(error.message || 'An unexpected error occurred during login. Please try again.');
     }
   };
   
@@ -50,19 +51,18 @@ const Login: React.FC = () => {
     console.log('Attempting to login with test account:', testEmail);
     
     try {
-      // Try to log in directly with the test account
-      const success = await login(testEmail, 'password');
+      const { success, message } = await createAndLoginTestAccount(testEmail);
       
-      // If login fails, try to create the account and then log in
-      if (!success) {
-        const created = await createAndLoginTestAccount(testEmail);
-        if (!created) {
-          setLoginError('Failed to create or login with test account');
-        }
+      if (success) {
+        toast.success('Demo login successful!');
+        navigate('/dashboard');
+      } else {
+        setLoginError(message);
+        toast.error(message);
       }
     } catch (error: any) {
       console.error('Test account login error:', error);
-      setLoginError(`Failed to login with test account: ${error.message}`);
+      setLoginError(`Failed to login with test account: ${error.message || 'Unknown error'}`);
     } finally {
       setProcessingAccount(null);
     }
@@ -170,6 +170,13 @@ const Login: React.FC = () => {
               ))}
               <p className="text-xs text-gray-500 pt-1">Password for all accounts: password</p>
             </div>
+          </div>
+          
+          <div className="mt-4 text-center text-sm text-gray-500">
+            <p>
+              Note: If login fails, email confirmation might be required.
+              Please check Supabase Auth settings to disable email confirmation for testing.
+            </p>
           </div>
         </div>
       </div>

@@ -10,9 +10,9 @@ interface AuthContextType {
   session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{success: boolean, message: string}>;
   logout: () => Promise<void>;
-  createAndLoginTestAccount: (email: string) => Promise<boolean>;
+  createAndLoginTestAccount: (email: string) => Promise<{success: boolean, message: string}>;
 }
 
 interface AuthProviderProps {
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSupabaseUser(data.session?.user || null);
         setUser(mapToAppUser(data.session?.user || null));
         
-        console.log('Initial session loaded:', data.session?.user?.email);
+        console.log('Initial session loaded:', data.session?.user?.email || 'No user');
       } catch (error) {
         console.error('Error getting initial session:', error);
       } finally {
@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, session?.user?.email);
+      console.log('Auth state change:', event, session?.user?.email || 'No user');
       
       setSession(session);
       setSupabaseUser(session?.user || null);
@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{success: boolean, message: string}> => {
     setIsLoading(true);
     
     try {
@@ -123,18 +123,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) {
         console.error('Login error:', error);
-        return false;
+        
+        // Handle email not confirmed error
+        if (error.message === 'Email not confirmed') {
+          return {
+            success: false,
+            message: 'Email not confirmed. Please check your inbox for a verification email or use the demo account button below.'
+          };
+        }
+        
+        return {
+          success: false, 
+          message: 'Login failed. Please check your credentials and try again.'
+        };
       }
       
       if (data.user) {
         console.log('Login successful for:', email);
-        return true;
+        return {
+          success: true,
+          message: 'Login successful'
+        };
       }
       
-      return false;
-    } catch (error) {
+      return {
+        success: false,
+        message: 'Login failed. No user data returned.'
+      };
+    } catch (error: any) {
       console.error('Login exception:', error);
-      throw error;
+      return {
+        success: false,
+        message: `Login error: ${error.message || 'Unknown error'}`
+      };
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +173,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
   
-  const createAndLoginTestAccount = async (email: string): Promise<boolean> => {
+  const createAndLoginTestAccount = async (email: string): Promise<{success: boolean, message: string}> => {
     setIsLoading(true);
     
     try {
@@ -187,8 +208,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         sampleUser.department = 'Finance';
       }
       
-      // Try to create the account
-      console.log('Creating account for:', email);
+      // Try to sign in directly first (in case account already exists)
+      console.log('Trying to sign in existing account for:', email);
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'password'
+      });
+      
+      if (!signInError && signInData.user) {
+        console.log('Existing account found and signed in successfully');
+        return {
+          success: true,
+          message: 'Signed in with existing test account'
+        };
+      }
+      
+      // Only if sign in fails, try to create the account
+      console.log('Creating new account for:', email);
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password: 'password',
@@ -197,30 +233,98 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             name: sampleUser.name,
             role: sampleUser.role,
             department: sampleUser.department
-          }
+          },
+          emailRedirectTo: window.location.origin
         }
       });
       
       if (signUpError) {
-        // If it's an error about the user already existing, try to sign in directly
         console.error('Sign-up error:', signUpError);
+        
+        // Special case: if account exists but email not confirmed, allow login anyway for demo accounts
         if (signUpError.message?.includes('User already registered')) {
-          console.log('User already exists, attempting to log in');
-          return await login(email, 'password');
+          console.log('User already exists, attempting admin sign-in for demo account');
+          
+          // For demo purposes, force a login
+          try {
+            const { data: demoSignIn, error: demoSignInError } = await supabase.auth.signInWithPassword({
+              email,
+              password: 'password'
+            });
+            
+            if (demoSignInError) {
+              if (demoSignInError.message === 'Email not confirmed') {
+                return {
+                  success: false,
+                  message: 'This account exists but email is not confirmed. Please check Supabase settings to disable email confirmation for testing.'
+                };
+              }
+              return {
+                success: false,
+                message: `Demo login failed: ${demoSignInError.message}`
+              };
+            }
+            
+            if (demoSignIn.user) {
+              console.log('Demo login successful');
+              return {
+                success: true,
+                message: 'Demo login successful'
+              };
+            }
+          } catch (e) {
+            console.error('Demo sign-in error:', e);
+          }
         }
-        return false;
+        
+        return {
+          success: false,
+          message: `Account creation failed: ${signUpError.message}`
+        };
       }
       
       if (signUpData.user) {
-        // Successfully created user, now try to log in
-        console.log('Account created, attempting to sign in');
-        return await login(email, 'password');
+        console.log('Account created successfully, attempting to sign in');
+        
+        // For newly created accounts, the email confirmation might be required
+        // For demo purposes, we'll try to sign in directly
+        const { data: newSignIn, error: newSignInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: 'password'
+        });
+        
+        if (newSignInError) {
+          if (newSignInError.message === 'Email not confirmed') {
+            return {
+              success: false,
+              message: 'Account created but email confirmation is required. Go to Supabase Auth settings to disable email confirmation for testing.'
+            };
+          }
+          return {
+            success: false,
+            message: `New account login failed: ${newSignInError.message}`
+          };
+        }
+        
+        if (newSignIn.user) {
+          console.log('New account login successful');
+          return {
+            success: true,
+            message: 'Account created and logged in successfully'
+          };
+        }
       }
       
-      return false;
-    } catch (error) {
+      return {
+        success: false,
+        message: 'Failed to create and login with test account for an unknown reason'
+      };
+    } catch (error: any) {
       console.error('Create test account error:', error);
-      return false;
+      return {
+        success: false,
+        message: `Error: ${error.message || 'Unknown error'}`
+      };
     } finally {
       setIsLoading(false);
     }
