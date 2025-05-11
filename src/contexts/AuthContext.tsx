@@ -157,10 +157,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     try {
       // Determine user details based on email
-      let sampleUser = {
+      let sampleUser: {
+        email: string;
+        name: string;
+        role: 'employee' | 'hr' | 'manager' | 'finance';
+        department: string;
+      } = {
         email,
         name: 'Default User',
-        role: 'employee' as const,
+        role: 'employee',
         department: 'General'
       };
       
