@@ -13,7 +13,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [processingAccount, setProcessingAccount] = useState<string | null>(null);
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, createAndLoginTestAccount } = useAuth();
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -32,10 +32,12 @@ const Login: React.FC = () => {
       if (success) {
         toast.success('Login successful! Redirecting to dashboard...');
         navigate('/dashboard');
+      } else {
+        setLoginError('Login failed. Please check your credentials and try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError('Invalid email or password. Please try again.');
+      setLoginError(error.message || 'Invalid email or password. Please try again.');
     }
   };
   
@@ -50,9 +52,13 @@ const Login: React.FC = () => {
     try {
       // Try to log in directly with the test account
       const success = await login(testEmail, 'password');
-      if (success) {
-        toast.success('Login successful! Redirecting to dashboard...');
-        navigate('/dashboard');
+      
+      // If login fails, try to create the account and then log in
+      if (!success) {
+        const created = await createAndLoginTestAccount(testEmail);
+        if (!created) {
+          setLoginError('Failed to create or login with test account');
+        }
       }
     } catch (error: any) {
       console.error('Test account login error:', error);
