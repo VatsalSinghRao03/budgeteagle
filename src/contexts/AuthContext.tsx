@@ -74,44 +74,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    // Get the initial session
-    const getInitialSession = async () => {
+    const setupAuth = async () => {
       try {
         setIsLoading(true);
         
+        // Set up auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+          console.log('Auth state change:', event, newSession?.user?.email || 'No user');
+          
+          setSession(newSession);
+          setSupabaseUser(newSession?.user || null);
+          setUser(mapToAppUser(newSession?.user || null));
+        });
+        
+        // Then get the initial session
         const { data } = await supabase.auth.getSession();
+        console.log('Initial session loaded:', data.session?.user?.email || 'No user');
+        
         setSession(data.session);
         setSupabaseUser(data.session?.user || null);
         setUser(mapToAppUser(data.session?.user || null));
         
-        console.log('Initial session loaded:', data.session?.user?.email || 'No user');
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        console.error('Error setting up auth:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    getInitialSession();
-    
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, session?.user?.email || 'No user');
-      
-      setSession(session);
-      setSupabaseUser(session?.user || null);
-      setUser(mapToAppUser(session?.user || null));
-      
-      if (event === 'SIGNED_IN') {
-        console.log('User signed in:', session?.user?.email);
-      } else if (event === 'SIGNED_OUT') {
-        console.log('User signed out');
-      }
-    });
-    
-    return () => {
-      subscription.unsubscribe();
-    };
+    setupAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<{success: boolean, message: string}> => {
@@ -124,11 +118,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) {
         console.error('Login error:', error);
         
-        // Handle email not confirmed error
-        if (error.message === 'Email not confirmed') {
+        if (error.message?.includes('Email not confirmed')) {
           return {
             success: false,
-            message: 'Email not confirmed. Please check your inbox for a verification email or use the demo account button below.'
+            message: 'Email not confirmed. Please check your inbox for a verification email or use one of the demo accounts below.'
           };
         }
         
@@ -223,6 +216,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
       }
       
+      // If login fails with email not confirmed, try to force login for demo accounts
+      if (signInError && signInError.message?.includes('Email not confirmed')) {
+        console.log('Email not confirmed for existing account, attempting direct login for demo purposes');
+        
+        // Force a login attempt for demo account despite email not being confirmed
+        const { data: forceSignInData, error: forceSignInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: 'password'
+        });
+        
+        if (!forceSignInError && forceSignInData.user) {
+          console.log('Forced login successful for demo account');
+          return {
+            success: true,
+            message: 'Demo login successful'
+          };
+        }
+      }
+      
       // Only if sign in fails, try to create the account
       console.log('Creating new account for:', email);
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -253,7 +265,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
             
             if (demoSignInError) {
-              if (demoSignInError.message === 'Email not confirmed') {
+              if (demoSignInError.message?.includes('Email not confirmed')) {
                 return {
                   success: false,
                   message: 'This account exists but email is not confirmed. Please check Supabase settings to disable email confirmation for testing.'
@@ -294,7 +306,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
         
         if (newSignInError) {
-          if (newSignInError.message === 'Email not confirmed') {
+          if (newSignInError.message?.includes('Email not confirmed')) {
             return {
               success: false,
               message: 'Account created but email confirmation is required. Go to Supabase Auth settings to disable email confirmation for testing.'

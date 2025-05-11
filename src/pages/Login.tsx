@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mail, Lock, LogIn } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -35,10 +35,12 @@ const Login: React.FC = () => {
         navigate('/dashboard');
       } else {
         setLoginError(message);
+        toast.error(message);
       }
     } catch (error: any) {
       console.error('Login error:', error);
       setLoginError(error.message || 'An unexpected error occurred during login. Please try again.');
+      toast.error('Login failed. Please try again.');
     }
   };
   
@@ -63,6 +65,7 @@ const Login: React.FC = () => {
     } catch (error: any) {
       console.error('Test account login error:', error);
       setLoginError(`Failed to login with test account: ${error.message || 'Unknown error'}`);
+      toast.error('Demo login failed. Please try again.');
     } finally {
       setProcessingAccount(null);
     }
@@ -108,28 +111,40 @@ const Login: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="pl-10"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
               
               <div>
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="pl-10"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
               
               <Button 
@@ -142,7 +157,12 @@ const Login: React.FC = () => {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
                   </>
-                ) : 'Log In'}
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Log In
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -159,12 +179,14 @@ const Login: React.FC = () => {
                 <button 
                   key={account.email}
                   onClick={() => handleDemoLogin(account.email)}
-                  className="w-full text-left px-2 py-1 hover:bg-blue-100 rounded text-sm transition-colors flex items-center"
+                  className="w-full text-left px-3 py-2 hover:bg-blue-100 rounded text-sm transition-colors flex items-center"
                   disabled={isLoading || !!processingAccount}
                 >
                   {processingAccount === account.email ? (
                     <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                  ) : null}
+                  ) : (
+                    <Mail className="mr-2 h-3 w-3 text-blue-500" />
+                  )}
                   <span>{account.role}: {account.email}</span>
                 </button>
               ))}
