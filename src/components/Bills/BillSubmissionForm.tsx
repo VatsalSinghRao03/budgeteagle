@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Upload } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 
 const BillSubmissionForm: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const BillSubmissionForm: React.FC = () => {
   
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [fileUploading, setFileUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -44,6 +46,8 @@ const BillSubmissionForm: React.FC = () => {
     
     if (!user) return;
     
+    setSubmitting(true);
+    
     try {
       let fileUrl;
       
@@ -59,6 +63,7 @@ const BillSubmissionForm: React.FC = () => {
           .upload(filePath, fileUpload);
           
         if (error) {
+          console.error("File upload error:", error);
           throw error;
         }
         
@@ -80,9 +85,13 @@ const BillSubmissionForm: React.FC = () => {
         fileUrl: fileUrl,
       });
       
+      toast.success('Bill submitted successfully!');
       navigate('/bills');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting bill:', error);
+      toast.error(`Failed to submit bill: ${error.message || 'Unknown error'}`);
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -175,10 +184,17 @@ const BillSubmissionForm: React.FC = () => {
           </Button>
           <Button 
             type="submit"
-            disabled={isLoading || fileUploading || !billData.title || !billData.amount}
+            disabled={submitting || fileUploading || !billData.title || !billData.amount}
             className="btn-primary"
           >
-            {isLoading || fileUploading ? 'Submitting...' : 'Submit Bill'}
+            {submitting || fileUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit Bill'
+            )}
           </Button>
         </div>
       </form>
