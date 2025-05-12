@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 
 const BillSubmissionForm: React.FC = () => {
   const { user } = useAuth();
-  const { submitBill, isLoading } = useBill();
+  const { submitBill } = useBill();
   const navigate = useNavigate();
   
   const [billData, setBillData] = useState({
@@ -44,7 +44,10 @@ const BillSubmissionForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) return;
+    if (!user) {
+      toast.error('You must be logged in to submit a bill');
+      return;
+    }
     
     setSubmitting(true);
     
@@ -55,25 +58,32 @@ const BillSubmissionForm: React.FC = () => {
       if (fileUpload) {
         setFileUploading(true);
         
-        // Create unique file path with user ID and timestamp
-        const filePath = `${user.id}/${uuidv4()}-${fileUpload.name}`;
-        
-        const { data, error } = await supabase.storage
-          .from('bill-receipts')
-          .upload(filePath, fileUpload);
+        try {
+          // Create unique file path with user ID and timestamp
+          const filePath = `${user.id}/${uuidv4()}-${fileUpload.name}`;
           
-        if (error) {
-          console.error("File upload error:", error);
-          throw error;
+          const { data, error } = await supabase.storage
+            .from('bill-receipts')
+            .upload(filePath, fileUpload);
+            
+          if (error) {
+            console.error("File upload error:", error);
+            throw new Error(`File upload failed: ${error.message}`);
+          }
+          
+          // Get public URL for the uploaded file
+          const { data: urlData } = supabase.storage
+            .from('bill-receipts')
+            .getPublicUrl(filePath);
+            
+          fileUrl = urlData.publicUrl;
+        } catch (uploadError: any) {
+          console.error('File upload error:', uploadError);
+          toast.error(`Failed to upload file: ${uploadError.message}`);
+          throw uploadError;
+        } finally {
+          setFileUploading(false);
         }
-        
-        // Get public URL for the uploaded file
-        const { data: urlData } = supabase.storage
-          .from('bill-receipts')
-          .getPublicUrl(filePath);
-          
-        fileUrl = urlData.publicUrl;
-        setFileUploading(false);
       }
       
       await submitBill({
