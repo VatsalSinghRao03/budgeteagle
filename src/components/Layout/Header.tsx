@@ -11,7 +11,7 @@ const Header: React.FC = () => {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <img 
-            src="/lovable-uploads/7b7c80e1-0e0e-46de-8ddc-fb9d21b89cdc.png" 
+            src="/lovable-uploads/347e4bbf-cf50-4ba9-bc2f-de43c97faf78.png" 
             alt="Budget Eagle Logo" 
             className="h-10 w-auto" 
           />

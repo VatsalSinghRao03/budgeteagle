@@ -77,7 +77,7 @@ const Login: React.FC = () => {
       <header className="bg-brand-blue text-white py-3 px-6 shadow-md">
         <div className="container mx-auto flex items-center">
           <img 
-            src="/lovable-uploads/a2437a8f-cb69-4e67-a606-d780a825f529.png" 
+            src="/lovable-uploads/347e4bbf-cf50-4ba9-bc2f-de43c97faf78.png" 
             alt="Budget Eagle Logo" 
             className="h-10 w-auto mr-3" 
           />
@@ -92,7 +92,7 @@ const Login: React.FC = () => {
       <div className="flex-1 flex items-center justify-center bg-gray-100 relative">
         <div className="absolute inset-0 z-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-90">
           <img 
-            src="/lovable-uploads/171deb14-e06d-4eba-a62b-e5752acccd2c.png" 
+            src="/lovable-uploads/73dd6713-f372-439c-8091-0ca67b982fa1.png" 
             alt="Budget Meeting Background" 
             className="w-full h-full object-cover mix-blend-overlay"
           />

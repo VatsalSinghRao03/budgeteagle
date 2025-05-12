@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBill } from '@/contexts/BillContext';
@@ -64,7 +63,10 @@ const BillSubmissionForm: React.FC = () => {
           
           const { data, error } = await supabase.storage
             .from('bill-receipts')
-            .upload(filePath, fileUpload);
+            .upload(filePath, fileUpload, {
+              cacheControl: '3600',
+              upsert: false
+            });
             
           if (error) {
             console.error("File upload error:", error);
@@ -77,6 +79,7 @@ const BillSubmissionForm: React.FC = () => {
             .getPublicUrl(filePath);
             
           fileUrl = urlData.publicUrl;
+          console.log("File uploaded successfully:", fileUrl);
         } catch (uploadError: any) {
           console.error('File upload error:', uploadError);
           toast.error(`Failed to upload file: ${uploadError.message}`);
@@ -86,6 +89,7 @@ const BillSubmissionForm: React.FC = () => {
         }
       }
       
+      // Submit bill data
       await submitBill({
         title: billData.title,
         amount: parseFloat(billData.amount),
