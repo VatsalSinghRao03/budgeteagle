@@ -26,15 +26,25 @@ const BillDownloadButton: React.FC<BillDownloadButtonProps> = ({
     }
     
     try {
-      // Create an anchor element and trigger download
+      // Fetch the file content from the URL
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const blob = await response.blob();
+      
+      // Create a download link and trigger download
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = fileName || 'bill-receipt';
+      link.href = downloadUrl;
+      link.download = fileName || 'bill-receipt.png';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast.success("Download started");
+      // Clean up the object URL
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+      
+      toast.success("File downloaded successfully");
     } catch (error) {
       console.error("Download error:", error);
       toast.error("Failed to download file");

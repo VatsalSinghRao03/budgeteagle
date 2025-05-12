@@ -5,8 +5,8 @@ import {
   LayoutDashboard, 
   Receipt, 
   Users, 
-  BarChart4, 
-  DollarSign,
+  BarChart4,
+  IndianRupee,
   PlusCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,7 +51,7 @@ const Sidebar: React.FC = () => {
     {
       title: 'Budgets',
       path: '/budgets',
-      icon: <DollarSign className="w-5 h-5" />,
+      icon: <IndianRupee className="w-5 h-5" />,
       roles: ['finance'],
     }
   ];

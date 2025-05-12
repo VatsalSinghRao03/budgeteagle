@@ -90,7 +90,7 @@ const Login: React.FC = () => {
       
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center bg-gray-100 relative">
-        <div className="absolute inset-0 z-0 bg-gradient-to-r from-blue-500 to-indigo-600 opacity-90">
+        <div className="absolute inset-0 z-0 bg-gradient-to-r from-[#1A1F2C] to-[#33C3F0] opacity-90">
           <img 
             src="/lovable-uploads/73dd6713-f372-439c-8091-0ca67b982fa1.png" 
             alt="Budget Meeting Background" 
