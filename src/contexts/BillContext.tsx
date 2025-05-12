@@ -283,6 +283,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Update local state for all users - important for ensuring consistency
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
       toast.success('Bill deleted successfully');
     } catch (error) {
@@ -305,6 +306,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Update local state for all users - important for ensuring consistency
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
       
       toast.success(billIds.length === 1 

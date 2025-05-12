@@ -33,16 +33,19 @@ const BillDownloadButton: React.FC<BillDownloadButtonProps> = ({
       const blob = await response.blob();
       
       // Create a download link and trigger download
-      const downloadUrl = URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = fileName || 'bill-receipt.png';
+      link.download = fileName || 'bill-receipt.pdf';
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
       
-      // Clean up the object URL
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 100);
       
       toast.success("File downloaded successfully");
     } catch (error) {
