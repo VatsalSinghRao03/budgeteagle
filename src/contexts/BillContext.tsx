@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
@@ -23,24 +24,15 @@ const BillContext = createContext<BillContextType | undefined>(undefined);
 
 export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bills, setBills] = useState<Bill[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const { user } = useAuth();
 
-  // Fetch bills from Supabase on component mount and when user changes
-  useEffect(() => {
-    if (user) {
-      console.log("User authenticated, fetching bills:", user);
-      fetchBills();
-    } else {
-      console.log("No authenticated user, clearing bills");
-      setBills([]);
-    }
-  }, [user]);
-
-  // Fetch bills from Supabase
-  const fetchBills = async () => {
+  // Create a memoized fetchBills function to prevent re-creation on each render
+  const fetchBills = useCallback(async () => {
     if (!user) {
       console.log("Cannot fetch bills: No authenticated user");
+      setBills([]);
+      setIsLoading(false);
       return;
     }
     
@@ -56,37 +48,80 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error fetching bills:", error);
+        toast.error("Failed to fetch bills. Please try refreshing the page.");
         throw error;
       }
       
       console.log("Bills fetched successfully:", data);
       
-      // Transform data to match our Bill type
-      const transformedBills = data.map(bill => ({
-        id: bill.id,
-        title: bill.title,
-        amount: bill.amount,
-        description: bill.description,
-        fileUrl: bill.file_url,
-        fileName: bill.file_name,
-        submittedBy: bill.submitted_by,
-        submitterName: bill.submitter_name,
-        submitterDepartment: bill.submitter_department,
-        date: bill.date,
-        status: bill.status as "pending" | "approved" | "rejected",
-        rejectionReason: bill.rejection_reason,
-        reviewedBy: bill.reviewed_by,
-        reviewedDate: bill.reviewed_date
-      }));
-      
-      setBills(transformedBills);
+      if (!data || data.length === 0) {
+        console.log("No bills found in database");
+        setBills([]);
+      } else {
+        // Transform data to match our Bill type
+        const transformedBills = data.map(bill => ({
+          id: bill.id,
+          title: bill.title,
+          amount: bill.amount,
+          description: bill.description,
+          fileUrl: bill.file_url,
+          fileName: bill.file_name,
+          submittedBy: bill.submitted_by,
+          submitterName: bill.submitter_name,
+          submitterDepartment: bill.submitter_department,
+          date: bill.date,
+          status: bill.status as "pending" | "approved" | "rejected",
+          rejectionReason: bill.rejection_reason,
+          reviewedBy: bill.reviewed_by,
+          reviewedDate: bill.reviewed_date
+        }));
+        
+        console.log("Transformed bills:", transformedBills.length);
+        setBills(transformedBills);
+      }
     } catch (error) {
       console.error('Error fetching bills:', error);
-      toast.error('Failed to fetch bills');
+      toast.error('Failed to fetch bills. Please try again later.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  // Set up realtime subscription
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log("Setting up realtime subscription for bills");
+    
+    const channel = supabase
+      .channel('public:bills')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'bills' }, 
+        (payload) => {
+          console.log('Realtime update received:', payload);
+          fetchBills(); // Refetch bills when changes occur
+        })
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
+    
+    return () => {
+      console.log("Cleaning up realtime subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchBills]);
+
+  // Fetch bills when user changes or on initial load
+  useEffect(() => {
+    if (user) {
+      console.log("User authenticated, fetching bills:", user);
+      fetchBills();
+    } else {
+      console.log("No authenticated user, clearing bills");
+      setBills([]);
+      setIsLoading(false);
+    }
+  }, [user, fetchBills]);
 
   const submitBill = async (billData: Omit<Bill, 'id' | 'date' | 'status' | 'submitterName' | 'submitterDepartment'>) => {
     if (!user) return;
@@ -109,6 +144,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error submitting bill:", error);
+        toast.error('Failed to submit bill. Please try again.');
         throw error;
       }
       
@@ -156,6 +192,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('Bill submitted successfully');
+      // Force a refetch to ensure data consistency
+      fetchBills();
       return Promise.resolve();
     } catch (error) {
       toast.error('Failed to submit bill');
@@ -300,6 +338,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error deleting bill:", error);
+        toast.error('Failed to delete bill');
         throw error;
       }
       
@@ -308,7 +347,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update local state
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
       
-      toast.success('Bill deleted successfully');
+      toast.success('Bill permanently deleted');
+      
+      // Force refetch to ensure consistency across users
+      await fetchBills();
     } catch (error) {
       console.error('Delete bill error:', error);
       toast.error('Failed to delete bill');
@@ -331,6 +373,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error deleting multiple bills:", error);
+        toast.error('Failed to delete bills');
         throw error;
       }
       
@@ -340,8 +383,11 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
       
       toast.success(billIds.length === 1 
-        ? 'Bill deleted successfully' 
-        : `${billIds.length} bills deleted successfully`);
+        ? 'Bill permanently deleted' 
+        : `${billIds.length} bills permanently deleted`);
+      
+      // Force refetch to ensure consistency across users
+      await fetchBills();
     } catch (error) {
       console.error('Delete bills error:', error);
       toast.error('Failed to delete bills');
@@ -394,6 +440,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error("Error clearing bills:", error);
+        toast.error('Failed to clear bills');
         throw error;
       }
       
@@ -407,6 +454,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('All bills have been cleared');
+      
+      // Force refetch to ensure consistency across all users
+      await fetchBills();
     } catch (error) {
       console.error('Clear bills error:', error);
       toast.error('Failed to clear bills');

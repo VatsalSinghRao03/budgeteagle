@@ -17,5 +17,22 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     storageKey: 'budget-eagle-auth-token',
     flowType: 'implicit'
+  },
+  global: {
+    // Prevent caching issues especially after deletions
+    fetch: (url, options) => {
+      // Add cache busting for GET requests
+      if (options?.method === 'GET' || !options?.method) {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}_nocache=${Date.now()}`;
+      }
+      return fetch(url, options);
+    }
+  },
+  realtime: {
+    // Enable realtime subscriptions
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });

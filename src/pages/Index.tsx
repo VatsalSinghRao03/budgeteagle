@@ -8,12 +8,16 @@ const Index: React.FC = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    console.log("Index page - Auth state:", { isAuthenticated, isLoading });
+    console.log("Index page - Auth state:", { isAuthenticated, isLoading, user });
     
+    // Wait until auth state is resolved before redirecting
     if (!isLoading) {
       if (isAuthenticated && user) {
         console.log("User is authenticated, redirecting to dashboard");
-        navigate('/dashboard');
+        // Add a slight delay to ensure auth context is fully loaded
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 100);
       } else {
         console.log("User is not authenticated, redirecting to login");
         navigate('/login');
