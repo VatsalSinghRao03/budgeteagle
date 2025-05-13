@@ -28,5 +28,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
       }
       return fetch(url, options);
     },
+  },
+  realtime: {
+    // Enable realtime subscriptions
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });

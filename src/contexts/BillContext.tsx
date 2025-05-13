@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -31,6 +30,21 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user) {
       fetchBills();
+      
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel('public:bills')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'bills' }, 
+          (payload) => {
+            console.log('Realtime update:', payload);
+            fetchBills(); // Refetch bills when changes occur
+          })
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
     } else {
       setBills([]);
     }
@@ -42,13 +56,11 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      let query = supabase.from('bills').select('*');
-      
-      if (user.role === 'employee') {
-        query = query.eq('submitted_by', user.id);
-      }
-      
-      const { data, error } = await query.order('date', { ascending: false });
+      // Always fetch all bills to ensure consistency across all users
+      const { data, error } = await supabase
+        .from('bills')
+        .select('*')
+        .order('date', { ascending: false });
       
       if (error) {
         throw error;
