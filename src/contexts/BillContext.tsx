@@ -38,7 +38,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      console.log("Fetching bills from Supabase...");
+      console.log("Fetching bills from Supabase...", user.id);
       
       // Always fetch all bills to ensure consistency across all users
       const { data, error } = await supabase
@@ -52,7 +52,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      console.log("Bills fetched successfully:", data);
+      console.log("Bills fetched successfully:", data?.length || 0);
       
       if (!data || data.length === 0) {
         console.log("No bills found in database");
@@ -94,7 +94,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("Setting up realtime subscription for bills");
     
     const channel = supabase
-      .channel('public:bills')
+      .channel('bills-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'bills' }, 
         (payload) => {

@@ -19,14 +19,32 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'implicit'
   },
   global: {
-    // Prevent caching issues especially after deletions
-    fetch: (url, options) => {
+    headers: {
+      'x-application-name': 'budget-eagle',
+    },
+    // Improved fetch with better error handling
+    fetch: (url, options = {}) => {
       // Add cache busting for GET requests
       if (options?.method === 'GET' || !options?.method) {
         const separator = url.includes('?') ? '&' : '?';
         url = `${url}${separator}_nocache=${Date.now()}`;
       }
-      return fetch(url, options);
+      
+      // Add better logging
+      console.log(`Supabase request: ${options?.method || 'GET'} ${url}`);
+      
+      return fetch(url, {
+        ...options,
+        credentials: 'same-origin'
+      }).then(response => {
+        if (!response.ok) {
+          console.error(`Supabase error: ${response.status} ${response.statusText}`);
+        }
+        return response;
+      }).catch(error => {
+        console.error('Supabase fetch error:', error);
+        throw error;
+      });
     }
   },
   realtime: {

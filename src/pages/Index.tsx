@@ -14,10 +14,8 @@ const Index: React.FC = () => {
     if (!isLoading) {
       if (isAuthenticated && user) {
         console.log("User is authenticated, redirecting to dashboard");
-        // Add a slight delay to ensure auth context is fully loaded
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 100);
+        // Remove the delay to ensure immediate redirection
+        navigate('/dashboard');
       } else {
         console.log("User is not authenticated, redirecting to login");
         navigate('/login');
