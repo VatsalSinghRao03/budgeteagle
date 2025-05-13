@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -29,6 +30,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Fetch bills from Supabase on component mount and when user changes
   useEffect(() => {
     if (user) {
+      console.log("User authenticated, fetching bills:", user);
       fetchBills();
       
       // Subscribe to realtime changes
@@ -37,25 +39,34 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'bills' }, 
           (payload) => {
-            console.log('Realtime update:', payload);
+            console.log('Realtime update received:', payload);
             fetchBills(); // Refetch bills when changes occur
           })
-        .subscribe();
+        .subscribe((status) => {
+          console.log("Realtime subscription status:", status);
+        });
       
       return () => {
+        console.log("Cleaning up realtime subscription");
         supabase.removeChannel(channel);
       };
     } else {
+      console.log("No authenticated user, clearing bills");
       setBills([]);
     }
   }, [user]);
 
   // Fetch bills from Supabase
   const fetchBills = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("Cannot fetch bills: No authenticated user");
+      return;
+    }
     
     setIsLoading(true);
     try {
+      console.log("Fetching bills from Supabase...");
+      
       // Always fetch all bills to ensure consistency across all users
       const { data, error } = await supabase
         .from('bills')
@@ -63,8 +74,11 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('date', { ascending: false });
       
       if (error) {
+        console.error("Error fetching bills:", error);
         throw error;
       }
+      
+      console.log("Bills fetched successfully:", data);
       
       // Transform data to match our Bill type
       const transformedBills = data.map(bill => ({
@@ -98,6 +112,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
+      console.log("Submitting new bill:", billData);
+      
       // Insert bill into Supabase
       const { data, error } = await supabase.from('bills').insert({
         title: billData.title,
@@ -110,7 +126,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         submitter_department: user.department
       }).select();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error submitting bill:", error);
+        throw error;
+      }
+      
+      console.log("Bill submitted successfully:", data);
       
       if (data && data.length > 0) {
         // Transform returned data to match Bill type
@@ -289,13 +310,20 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteBill = async (billId: string) => {
     setIsLoading(true);
     try {
+      console.log("Deleting bill:", billId);
+      
       // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
         .eq('id', billId);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting bill:", error);
+        throw error;
+      }
+      
+      console.log("Bill deleted successfully");
       
       // Update local state
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
@@ -317,13 +345,20 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
+      console.log("Deleting multiple bills:", billIds);
+      
       // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
         .in('id', billIds);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting multiple bills:", error);
+        throw error;
+      }
+      
+      console.log("Multiple bills deleted successfully");
       
       // Update local state
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
@@ -373,6 +408,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
+      console.log("Clearing all bills");
+      
       // Delete ALL bills if admin/manager OR only user's bills if employee/HR
       let query = supabase.from('bills').delete();
       
@@ -382,7 +419,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const { error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error clearing bills:", error);
+        throw error;
+      }
+      
+      console.log("Bills cleared successfully");
       
       // Update local state based on user role
       if (user.role === 'employee' || user.role === 'hr') {

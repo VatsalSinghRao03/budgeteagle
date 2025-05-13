@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +16,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
+    console.log("Login page - Auth state:", { isAuthenticated });
+    
     if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to dashboard");
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
