@@ -1,5 +1,5 @@
 
-# Budget Eagle - Expense Management System
+# Budget Eagle - BUDGET APPROVAL SYSTEM
 
 ## Project info
 
@@ -12,22 +12,18 @@ This project is built with a modern tech stack for optimal performance and devel
 ### Frontend
 - **React** - UI library for building component-based interfaces
 - **TypeScript** - For type safety and improved developer experience
-- **Vite** - Fast and efficient build tool and development server
 - **Tailwind CSS** - Utility-first CSS framework for rapid styling
-- **shadcn-ui** - High-quality UI components built on Radix UI
-- **React Router** - For client-side routing
-- **Tanstack Query** - For efficient data fetching and caching
 - **Lucide React** - Beautiful and consistent icon set
 - **Recharts** - Composable charting library for data visualization
 
 ### Backend & Services
 - **Supabase** - For authentication, database, and storage
 - **EmailJS** - For sending email notifications without a backend
-- **React Hook Form** - For form state management and validation
-- **Zod** - TypeScript-first schema validation
 
 ### Deployment
 - **Netlify** - For continuous deployment and hosting
+### Deployment
+- **Github** - For version control
 
 ## Features
 
