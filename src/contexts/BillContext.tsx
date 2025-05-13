@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -32,24 +31,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       console.log("User authenticated, fetching bills:", user);
       fetchBills();
-      
-      // Subscribe to realtime changes
-      const channel = supabase
-        .channel('public:bills')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'bills' }, 
-          (payload) => {
-            console.log('Realtime update received:', payload);
-            fetchBills(); // Refetch bills when changes occur
-          })
-        .subscribe((status) => {
-          console.log("Realtime subscription status:", status);
-        });
-      
-      return () => {
-        console.log("Cleaning up realtime subscription");
-        supabase.removeChannel(channel);
-      };
     } else {
       console.log("No authenticated user, clearing bills");
       setBills([]);
@@ -312,7 +293,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("Deleting bill:", billId);
       
-      // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
@@ -328,10 +308,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update local state
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
       
-      toast.success('Bill permanently deleted');
-      
-      // Force refetch to ensure consistency across users
-      await fetchBills();
+      toast.success('Bill deleted successfully');
     } catch (error) {
       console.error('Delete bill error:', error);
       toast.error('Failed to delete bill');
@@ -347,7 +324,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("Deleting multiple bills:", billIds);
       
-      // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
@@ -364,11 +340,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
       
       toast.success(billIds.length === 1 
-        ? 'Bill permanently deleted' 
-        : `${billIds.length} bills permanently deleted`);
-      
-      // Force refetch to ensure consistency across users
-      await fetchBills();
+        ? 'Bill deleted successfully' 
+        : `${billIds.length} bills deleted successfully`);
     } catch (error) {
       console.error('Delete bills error:', error);
       toast.error('Failed to delete bills');
@@ -434,9 +407,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('All bills have been cleared');
-      
-      // Force refetch to ensure consistency across all users
-      await fetchBills();
     } catch (error) {
       console.error('Clear bills error:', error);
       toast.error('Failed to clear bills');
