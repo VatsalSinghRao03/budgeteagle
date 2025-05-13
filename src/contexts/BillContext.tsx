@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Bill, AppStats } from '@/types';
 import { useAuth } from './AuthContext';
@@ -276,6 +277,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteBill = async (billId: string) => {
     setIsLoading(true);
     try {
+      // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
@@ -283,12 +285,16 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update local state for all users - important for ensuring consistency
+      // Update local state
       setBills(prevBills => prevBills.filter(bill => bill.id !== billId));
-      toast.success('Bill deleted successfully');
+      
+      toast.success('Bill permanently deleted');
+      
+      // Force refetch to ensure consistency across users
+      await fetchBills();
     } catch (error) {
-      toast.error('Failed to delete bill');
       console.error('Delete bill error:', error);
+      toast.error('Failed to delete bill');
     } finally {
       setIsLoading(false);
     }
@@ -299,6 +305,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
+      // Force a hard delete with no caching
       const { error } = await supabase
         .from('bills')
         .delete()
@@ -306,15 +313,18 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update local state for all users - important for ensuring consistency
+      // Update local state
       setBills(prevBills => prevBills.filter(bill => !billIds.includes(bill.id)));
       
       toast.success(billIds.length === 1 
-        ? 'Bill deleted successfully' 
-        : `${billIds.length} bills deleted successfully`);
+        ? 'Bill permanently deleted' 
+        : `${billIds.length} bills permanently deleted`);
+      
+      // Force refetch to ensure consistency across users
+      await fetchBills();
     } catch (error) {
-      toast.error('Failed to delete bills');
       console.error('Delete bills error:', error);
+      toast.error('Failed to delete bills');
     } finally {
       setIsLoading(false);
     }
@@ -351,7 +361,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setIsLoading(true);
     try {
-      // Only delete bills submitted by the current user if they're an employee or HR
+      // Delete ALL bills if admin/manager OR only user's bills if employee/HR
       let query = supabase.from('bills').delete();
       
       if (user.role === 'employee' || user.role === 'hr') {
@@ -362,6 +372,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Update local state based on user role
       if (user.role === 'employee' || user.role === 'hr') {
         setBills(prevBills => prevBills.filter(bill => bill.submittedBy !== user.id));
       } else {
@@ -369,9 +380,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       toast.success('All bills have been cleared');
+      
+      // Force refetch to ensure consistency across all users
+      await fetchBills();
     } catch (error) {
-      toast.error('Failed to clear bills');
       console.error('Clear bills error:', error);
+      toast.error('Failed to clear bills');
     } finally {
       setIsLoading(false);
     }
